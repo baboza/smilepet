@@ -31,11 +31,11 @@ export default function NewAdmitPage() {
       const petsSnap = await getDocs(collection(db, "pets"));
       const ownersSnap = await getDocs(collection(db, "owners"));
       
-      const ownersList = ownersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const ownersList = ownersSnap.docs.map(doc => ({ id: doc.id, ...(doc.data() as any) } as any));
       
       return petsSnap.docs
         .map(doc => {
-          const data = doc.data();
+          const data = doc.data() as any;
           const owner = ownersList.find((o: any) => o.id === data.ownerId);
           return { id: doc.id, ...data, ownerName: owner?.name || "ไม่ทราบชื่อ" };
         })

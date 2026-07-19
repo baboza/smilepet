@@ -12,10 +12,10 @@ const fetchOwnersAndPets = async () => {
   const ownersSnap = await getDocs(query(collection(db, "owners"), orderBy("createdAt", "desc")));
   const petsSnap = await getDocs(collection(db, "pets"));
   
-  const petsList = petsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  const petsList = petsSnap.docs.map(doc => ({ id: doc.id, ...(doc.data() as any) } as any));
   
   return ownersSnap.docs.map(doc => {
-    const data = doc.data();
+    const data = doc.data() as any;
     const ownerPets = petsList.filter((p: any) => p.ownerId === doc.id);
     return {
       id: doc.id,

@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { LogOut, Users, Calendar, Home, Scissors, DollarSign, Activity, Bell, Dog, Cat, CheckCircle2, XCircle, HeartPulse, User } from "lucide-react";
 import { StatCard } from "@/components/ui/StatCard";
 import { useQuery } from "@tanstack/react-query";
-import { collection, getCountFromServer, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs, orderBy, limit, getCountFromServer, doc, getDoc } from "firebase/firestore";
 
 const fetchDashboardStats = async () => {
   const todayStr = new Date().toISOString().split("T")[0];
@@ -46,7 +46,7 @@ const fetchDashboardStats = async () => {
   };
 
   petsSnap.forEach((doc) => {
-    const data = doc.data();
+    const data = doc.data() as any;
     if (data.species === "สุนัข") petStats.dogs++;
     if (data.species === "แมว") petStats.cats++;
     
@@ -72,7 +72,7 @@ const fetchDashboardStats = async () => {
 
   const avgAge = petStats.validAgeCount > 0 ? (petStats.totalAgeYears / petStats.validAgeCount).toFixed(1) : "0";
 
-  return {
+  const stats = {
     patientsToday: opdSnap.data().count,
     appointmentsToday: appointmentsTodaySnap.data().count,
     boarding: boardingSnap.data().count,

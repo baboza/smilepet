@@ -581,8 +581,8 @@ export default function ImportPage() {
       setStatus(`✅ Import เจ้าของเสร็จสิ้น! (${imported} รายการ)`);
       addLog(`🎉 Import เจ้าของเสร็จสมบูรณ์ทั้งหมด ${imported} รายการ`);
     } catch (error: any) {
-      setStatus(`❌ เกิดข้อผิดพลาด: ${error.message}`);
-      addLog(`❌ Error: ${error.message}`);
+      setStatus(`❌ เกิดข้อผิดพลาด: ${error.message as string}`);
+      addLog(`❌ Error: ${error.message as string}`);
     } finally {
       setIsRunning(false);
     }
@@ -634,8 +634,8 @@ export default function ImportPage() {
       setStatus(`✅ Import สัตว์เลี้ยงเสร็จสิ้น! (${imported} รายการ)`);
       addLog(`🎉 Import สัตว์เลี้ยงเสร็จสมบูรณ์ทั้งหมด ${imported} รายการ`);
     } catch (error: any) {
-      setStatus(`❌ เกิดข้อผิดพลาด: ${error.message}`);
-      addLog(`❌ Error: ${error.message}`);
+      setStatus(`❌ เกิดข้อผิดพลาด: ${error.message as string}`);
+      addLog(`❌ Error: ${error.message as string}`);
     } finally {
       setIsRunning(false);
     }
@@ -675,8 +675,8 @@ export default function ImportPage() {
       setStatus(`✅ ลบสัตว์เลี้ยงเสร็จสิ้น! (${deleted} รายการ)`);
       addLog(`🎉 ลบข้อมูลสำเร็จทั้งหมด`);
     } catch (error: any) {
-      setStatus(`❌ เกิดข้อผิดพลาด: ${error.message}`);
-      addLog(`❌ Error: ${error.message}`);
+      setStatus(`❌ เกิดข้อผิดพลาด: ${error.message as string}`);
+      addLog(`❌ Error: ${error.message as string}`);
     } finally {
       setIsRunning(false);
     }
@@ -720,8 +720,8 @@ export default function ImportPage() {
       setStatus(`✅ ลบ OPD และนัดหมายเสร็จสิ้น! (${deleted} รายการ)`);
       addLog(`🎉 ลบข้อมูล OPD และนัดหมายสำเร็จ`);
     } catch (error: any) {
-      setStatus(`❌ เกิดข้อผิดพลาด: ${error.message}`);
-      addLog(`❌ Error: ${error.message}`);
+      setStatus(`❌ เกิดข้อผิดพลาด: ${error.message as string}`);
+      addLog(`❌ Error: ${error.message as string}`);
     } finally {
       setIsRunning(false);
     }

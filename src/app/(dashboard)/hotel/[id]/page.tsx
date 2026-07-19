@@ -41,14 +41,14 @@ export default function DailyLogPage({ params }: { params: Promise<{ id: string 
     queryFn: () => fetchBookingData(id),
   });
 
-  const { register, handleSubmit, watch, setValue } = useForm<DailyLogFormValues>({
+  const { register, handleSubmit, watch, setValue } = useForm<any>({
     resolver: zodResolver(dailyLogSchema),
     defaultValues: {
       date: new Date().toISOString().split("T")[0],
     }
   });
 
-  const onSubmit = async (data: DailyLogFormValues) => {
+  const onSubmit = async (data: any) => {
     setIsSubmitting(true);
     try {
       await addDoc(collection(db, "hotel_daily_logs"), {

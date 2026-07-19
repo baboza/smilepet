@@ -13,11 +13,11 @@ import { useQuery } from "@tanstack/react-query";
 
 const fetchPetsAndOwners = async () => {
   const ownersSnap = await getDocs(collection(db, "owners"));
-  const ownersList = ownersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  const ownersList = ownersSnap.docs.map(doc => ({ id: doc.id, ...(doc.data() as any) } as any));
 
   const petsSnap = await getDocs(query(collection(db, "pets"), orderBy("createdAt", "desc")));
   return petsSnap.docs.map(doc => {
-    const data = doc.data();
+    const data = doc.data() as any;
     const owner = ownersList.find((o: any) => o.id === data.ownerId);
     return {
       id: doc.id,
@@ -33,7 +33,7 @@ const fetchPetsAndOwners = async () => {
 const fetchDoctors = async () => {
   const q = query(collection(db, "users"), where("role", "==", "doctor"));
   const snap = await getDocs(q);
-  return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  return snap.docs.map(doc => ({ id: doc.id, ...(doc.data() as any) } as any));
 };
 
 function AppointmentFormContent() {
@@ -48,7 +48,7 @@ function AppointmentFormContent() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<AppointmentFormValues>({
+  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<any>({
     resolver: zodResolver(appointmentSchema),
     defaultValues: {
       petId: initialPetId,
@@ -87,7 +87,7 @@ function AppointmentFormContent() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const onSubmit = async (data: AppointmentFormValues) => {
+  const onSubmit = async (data: any) => {
     setIsSubmitting(true);
     try {
       await addDoc(collection(db, "appointments"), {
@@ -198,7 +198,7 @@ function AppointmentFormContent() {
                   </div>
                 )}
               </div>
-              {errors.petId && <p className="text-red-500 text-xs mt-1">{errors.petId.message}</p>}
+              {errors.petId && <p className="text-red-500 text-xs mt-1">{errors.petId.message as string}</p>}
             </div>
 
             <div>

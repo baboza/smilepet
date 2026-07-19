@@ -15,12 +15,12 @@ const fetchAppointments = async () => {
 
   const usersSnap = await getDocs(query(collection(db, "users"), where("role", "==", "doctor")));
 
-  const petsList = petsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  const ownersList = ownersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  const doctorsList = usersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  const petsList = petsSnap.docs.map(doc => ({ id: doc.id, ...(doc.data() as any) } as any));
+  const ownersList = ownersSnap.docs.map(doc => ({ id: doc.id, ...(doc.data() as any) } as any));
+  const doctorsList = usersSnap.docs.map(doc => ({ id: doc.id, ...(doc.data() as any) } as any));
 
   return appointmentsSnap.docs.map(doc => {
-    const data = doc.data();
+    const data = doc.data() as any;
     const pet = petsList.find((p: any) => p.id === data.petId);
     const owner = ownersList.find((o: any) => o.id === pet?.ownerId);
     const doctorObj = doctorsList.find((d: any) => d.id === data.doctorId);

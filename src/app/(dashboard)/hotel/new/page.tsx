@@ -13,11 +13,11 @@ import { useQuery } from "@tanstack/react-query";
 
 const fetchPetsAndOwners = async () => {
   const ownersSnap = await getDocs(collection(db, "owners"));
-  const ownersList = ownersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  const ownersList = ownersSnap.docs.map(doc => ({ id: doc.id, ...(doc.data() as any) }));
 
   const petsSnap = await getDocs(query(collection(db, "pets"), orderBy("createdAt", "desc")));
   return petsSnap.docs.map(doc => {
-    const data = doc.data();
+    const data = doc.data() as any;
     const owner = ownersList.find((o: any) => o.id === data.ownerId);
     return {
       id: doc.id,
@@ -163,7 +163,7 @@ function HotelFormContent() {
                   </div>
                 )}
               </div>
-              {errors.petId && <p className="text-red-500 text-xs mt-1">{errors.petId.message}</p>}
+              {errors.petId && <p className="text-red-500 text-xs mt-1">{errors.petId.message as string}</p>}
             </div>
 
             <div>
@@ -176,7 +176,7 @@ function HotelFormContent() {
                 <option value="VIP-01">VIP-01 (ห้องแอร์)</option>
                 <option value="Standard-03">Standard-03 (พัดลม)</option>
               </select>
-              {errors.roomNumber && <p className="text-red-500 text-xs mt-1">{errors.roomNumber.message}</p>}
+              {errors.roomNumber && <p className="text-red-500 text-xs mt-1">{errors.roomNumber.message as string}</p>}
             </div>
 
             <div className="grid grid-cols-2 gap-4">

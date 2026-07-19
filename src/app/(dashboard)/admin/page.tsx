@@ -52,7 +52,7 @@ export default function AdminPage() {
     queryKey: ["staffs"],
     queryFn: async () => {
       const snap = await getDocs(collection(db, "users"));
-      return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      return snap.docs.map(doc => ({ id: doc.id, ...(doc.data() as any) } as any));
     },
     enabled: activeTab === "staff" && !!user
   });

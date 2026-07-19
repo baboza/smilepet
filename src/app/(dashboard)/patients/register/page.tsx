@@ -59,7 +59,7 @@ export default function RegisterOwnerPage() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<RegisterFormValues>({
+  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<any>({
     resolver: zodResolver(registerFormSchema),
     defaultValues: {
       isNewOwner: true,
@@ -76,7 +76,7 @@ export default function RegisterOwnerPage() {
     queryFn: async () => {
       const q = query(collection(db, "owners"), orderBy("createdAt", "desc"));
       const snap = await getDocs(q);
-      return snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+      return snap.docs.map(doc => ({ id: doc.id, ...(doc.data() as any) } as any)) as any[];
     }
   });
 
@@ -104,7 +104,7 @@ export default function RegisterOwnerPage() {
     }
   };
 
-  const onSubmit = async (data: RegisterFormValues) => {
+  const onSubmit = async (data: any) => {
     setIsSubmitting(true);
     try {
       let petPhotoUrl = "";
@@ -199,7 +199,7 @@ export default function RegisterOwnerPage() {
                     className={`w-full p-3 border rounded-xl bg-gray-50 text-gray-900 focus:bg-white focus:outline-none focus:ring-2 transition-colors ${errors.name ? "border-red-300 focus:ring-red-500" : "border-gray-300 focus:ring-blue-500"}`}
                     placeholder="เช่น คุณสมหญิง ใจดี"
                   />
-                  {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
+                  {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message as string}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-gray-800 mb-1">เบอร์โทรศัพท์ <span className="text-red-500">*</span></label>
@@ -209,7 +209,7 @@ export default function RegisterOwnerPage() {
                     className={`w-full p-3 border rounded-xl bg-gray-50 text-gray-900 focus:bg-white focus:outline-none focus:ring-2 transition-colors ${errors.phone ? "border-red-300 focus:ring-red-500" : "border-gray-300 focus:ring-blue-500"}`}
                     placeholder="08X-XXX-XXXX"
                   />
-                  {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>}
+                  {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone.message as string}</p>}
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -294,7 +294,7 @@ export default function RegisterOwnerPage() {
                       </div>
                     )}
                   </div>
-                  {errors.ownerId && <p className="text-red-500 text-xs mt-1">{errors.ownerId.message}</p>}
+                  {errors.ownerId && <p className="text-red-500 text-xs mt-1">{errors.ownerId.message as string}</p>}
                 </div>
               </div>
             )}
@@ -328,7 +328,7 @@ export default function RegisterOwnerPage() {
                 type="text" 
                 className={`w-full p-3 border rounded-xl bg-gray-50 text-gray-900 focus:bg-white focus:outline-none focus:ring-2 transition-colors ${errors.petName ? "border-red-300 focus:ring-red-500" : "border-gray-300 focus:ring-orange-500"}`}
               />
-              {errors.petName && <p className="text-red-500 text-xs mt-1">{errors.petName.message}</p>}
+              {errors.petName && <p className="text-red-500 text-xs mt-1">{errors.petName.message as string}</p>}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -343,7 +343,7 @@ export default function RegisterOwnerPage() {
                   <option value="กระต่าย">กระต่าย</option>
                   <option value="Exotic">Exotic</option>
                 </select>
-                {errors.petSpecies && <p className="text-red-500 text-xs mt-1">{errors.petSpecies.message}</p>}
+                {errors.petSpecies && <p className="text-red-500 text-xs mt-1">{errors.petSpecies.message as string}</p>}
               </div>
               <div>
                 <label className="block text-sm font-bold text-gray-800 mb-1">พันธุ์</label>

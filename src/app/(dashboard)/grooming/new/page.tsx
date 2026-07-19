@@ -24,11 +24,11 @@ const GROOMING_SERVICES = [
 
 const fetchPetsAndOwners = async () => {
   const ownersSnap = await getDocs(collection(db, "owners"));
-  const ownersList = ownersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  const ownersList = ownersSnap.docs.map(doc => ({ id: doc.id, ...(doc.data() as any) } as any));
 
   const petsSnap = await getDocs(query(collection(db, "pets"), orderBy("createdAt", "desc")));
   return petsSnap.docs.map(doc => {
-    const data = doc.data();
+    const data = doc.data() as any;
     const owner = ownersList.find((o: any) => o.id === data.ownerId);
     return {
       id: doc.id,
@@ -51,7 +51,7 @@ function GroomingFormContent() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<GroomingFormValues>({
+  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<any>({
     resolver: zodResolver(groomingSchema),
     defaultValues: {
       petId: initialPetId,
@@ -83,7 +83,7 @@ function GroomingFormContent() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const onSubmit = async (data: GroomingFormValues) => {
+  const onSubmit = async (data: any) => {
     setIsSubmitting(true);
     try {
       await addDoc(collection(db, "grooming_queues"), {
@@ -172,7 +172,7 @@ function GroomingFormContent() {
                   </div>
                 )}
               </div>
-              {errors.petId && <p className="text-red-500 text-xs mt-1">{errors.petId.message}</p>}
+              {errors.petId && <p className="text-red-500 text-xs mt-1">{errors.petId.message as string}</p>}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
