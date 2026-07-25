@@ -143,11 +143,33 @@ const fetchDashboardStats = async () => {
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
   sevenDaysAgo.setHours(0, 0, 0, 0);
 
+  // Fetch records created in the last 30 days to catch any backdated entries
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  thirtyDaysAgo.setHours(0, 0, 0, 0);
+
   const [opdDocs, vacDocs, paraDocs] = await Promise.all([
-    getDocs(query(collection(db, "opd_records"), where("createdAt", ">=", sevenDaysAgo.toISOString()))),
-    getDocs(query(collection(db, "vaccinations"), where("createdAt", ">=", sevenDaysAgo.toISOString()))),
-    getDocs(query(collection(db, "parasite_preventions"), where("createdAt", ">=", sevenDaysAgo.toISOString())))
+    getDocs(query(collection(db, "opd_records"), where("createdAt", ">=", thirtyDaysAgo.toISOString()))),
+    getDocs(query(collection(db, "vaccinations"), where("createdAt", ">=", thirtyDaysAgo.toISOString()))),
+    getDocs(query(collection(db, "parasite_preventions"), where("createdAt", ">=", thirtyDaysAgo.toISOString())))
   ]);
+
+  // Helper to extract DD/MM from logical date or fallback to createdAt
+  const extractDayMonth = (data: any) => {
+    if (data.date) {
+      if (data.date.includes("-")) {
+        const parts = data.date.split("-"); // YYYY-MM-DD
+        if (parts.length >= 3) return `${parts[2].substring(0, 2)}/${parts[1]}`;
+      } else if (data.date.includes("/")) {
+        const parts = data.date.split("/"); // DD/MM/YYYY
+        if (parts.length >= 2) return `${parts[0].padStart(2, '0')}/${parts[1].padStart(2, '0')}`;
+      }
+    }
+    if (data.createdAt) {
+      return format(new Date(data.createdAt), "dd/MM");
+    }
+    return null;
+  };
 
   // Group by day
   const casesByDay: Record<string, { opd: number, vaccine: number, parasite: number }> = {};
@@ -162,26 +184,20 @@ const fetchDashboardStats = async () => {
 
   opdDocs.forEach(doc => {
     const data = doc.data();
-    if (data.createdAt) {
-      const dateStr = format(new Date(data.createdAt), "dd/MM");
-      if (casesByDay[dateStr]) casesByDay[dateStr].opd++;
-    }
+    const dateStr = extractDayMonth(data);
+    if (dateStr && casesByDay[dateStr]) casesByDay[dateStr].opd++;
   });
   
   vacDocs.forEach(doc => {
     const data = doc.data();
-    if (data.createdAt) {
-      const dateStr = format(new Date(data.createdAt), "dd/MM");
-      if (casesByDay[dateStr]) casesByDay[dateStr].vaccine++;
-    }
+    const dateStr = extractDayMonth(data);
+    if (dateStr && casesByDay[dateStr]) casesByDay[dateStr].vaccine++;
   });
   
   paraDocs.forEach(doc => {
     const data = doc.data();
-    if (data.createdAt) {
-      const dateStr = format(new Date(data.createdAt), "dd/MM");
-      if (casesByDay[dateStr]) casesByDay[dateStr].parasite++;
-    }
+    const dateStr = extractDayMonth(data);
+    if (dateStr && casesByDay[dateStr]) casesByDay[dateStr].parasite++;
   });
 
   for (const [date, counts] of Object.entries(casesByDay)) {
