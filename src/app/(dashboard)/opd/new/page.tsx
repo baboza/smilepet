@@ -102,12 +102,28 @@ function OpdFormContent() {
   const onSubmit = async (data: any) => {
     setIsSubmitting(true);
     try {
+      const now = new Date();
       const docRef = await addDoc(collection(db, "opd_records"), {
         ...data,
         doctorId: user?.uid || "unknown",
-        date: new Date().toISOString().split("T")[0],
-        createdAt: new Date().toISOString()
+        date: now.toISOString().split("T")[0],
+        createdAt: now.toISOString()
       });
+
+      // Create appointment if next appointment date is provided
+      if (data.nextAppointmentDate) {
+        await addDoc(collection(db, "appointments"), {
+          petId: data.petId,
+          type: data.nextAppointmentReason || "นัดติดตามอาการ",
+          date: data.nextAppointmentDate,
+          time: "09:00", // Default time
+          status: "pending",
+          notes: "นัดหมายอัตโนมัติจากการบันทึกผลตรวจ OPD",
+          createdAt: now.toISOString(),
+          createdBy: user?.uid || "unknown"
+        });
+      }
+
       setSavedPetId(data.petId);
       setShowSuccessModal(true);
     } catch (error) {
@@ -363,6 +379,34 @@ function OpdFormContent() {
                 <span className="text-sm font-bold text-gray-800">{item.label}</span>
               </label>
             ))}
+          </div>
+        </section>
+
+        {/* 5. Follow-up Appointment */}
+        <section className="bg-white p-5 rounded-2xl shadow-sm border border-gray-200 space-y-4">
+          <div className="flex items-center gap-2 text-gray-900 font-bold mb-2">
+            <CalendarPlus size={18} className="text-blue-600" />
+            <h2>นัดหมายติดตามอาการ (Follow-up)</h2>
+          </div>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-bold text-gray-800 mb-1">วันที่นัดหมายครั้งต่อไป</label>
+              <input 
+                type="date"
+                {...register("nextAppointmentDate")}
+                className="w-full p-3 border border-gray-300 rounded-xl bg-gray-50 text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="text-xs text-gray-500 mt-1">* หากระบุวันที่ ระบบจะสร้างใบนัดหมายให้อัตโนมัติ</p>
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-800 mb-1">เหตุผลการนัดหมาย / สิ่งที่ต้องทำ</label>
+              <input 
+                type="text"
+                {...register("nextAppointmentReason")}
+                placeholder="เช่น ดูแผล, ตรวจเลือดซ้ำ, ล้างแผล..."
+                className="w-full p-3 border border-gray-300 rounded-xl bg-gray-50 text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm placeholder-gray-500"
+              />
+            </div>
           </div>
         </section>
 

@@ -46,6 +46,8 @@ export const opdSchema = z.object({
     Surgery: z.boolean().default(false),
     Prescription: z.boolean().default(false),
   }).optional(),
+  nextAppointmentDate: z.string().optional(),
+  nextAppointmentReason: z.string().optional(),
 });
 
 export type OpdFormValues = z.infer<typeof opdSchema>;
