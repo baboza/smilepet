@@ -1,9 +1,10 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, DollarSign, Receipt, ShoppingBag, Link as LinkIcon } from "lucide-react";
+import { ArrowLeft, DollarSign, Receipt, ShoppingBag, Link as LinkIcon, Search, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useState, useRef, useEffect } from "react";
 import { db } from "@/lib/firebase/config";
 import { collection, getDocs, doc, setDoc } from "firebase/firestore";
 
@@ -26,6 +27,75 @@ const fetchLinkedReceipts = async () => {
     return acc;
   }, {} as Record<string, any>);
 };
+
+function SearchablePetSelect({ pets, onSelect }: { pets: any[], onSelect: (id: string) => void }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filteredPets = pets.filter(p => {
+    const term = search.toLowerCase();
+    return p.name.toLowerCase().includes(term) || (p.ownerName && p.ownerName.toLowerCase().includes(term));
+  });
+
+  return (
+    <div className="relative w-full" ref={dropdownRef}>
+      <div 
+        className="flex items-center justify-between w-full px-3 py-2 border border-gray-200 rounded-lg bg-white cursor-text focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500"
+        onClick={() => setIsOpen(true)}
+      >
+        <div className="flex items-center gap-2 flex-1">
+          <Search size={16} className="text-gray-400 shrink-0" />
+          <input 
+            type="text"
+            className="w-full text-sm outline-none bg-transparent text-gray-900 placeholder-gray-500"
+            placeholder="ค้นหาชื่อสัตว์เลี้ยง หรือ เจ้าของ..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setIsOpen(true);
+            }}
+            onFocus={() => setIsOpen(true)}
+          />
+        </div>
+        <ChevronDown size={16} className="text-gray-400 shrink-0" />
+      </div>
+
+      {isOpen && (
+        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+          {filteredPets.length > 0 ? (
+            filteredPets.map(pet => (
+              <div 
+                key={pet.id} 
+                className="p-3 border-b border-gray-50 hover:bg-blue-50 cursor-pointer transition-colors"
+                onClick={() => {
+                  onSelect(pet.id);
+                  setIsOpen(false);
+                  setSearch("");
+                }}
+              >
+                <p className="text-sm font-bold text-gray-900">{pet.name}</p>
+                <p className="text-xs text-gray-500">เจ้าของ: {pet.ownerName || "ไม่ระบุ"}</p>
+              </div>
+            ))
+          ) : (
+            <div className="p-3 text-sm text-gray-500 text-center">ไม่พบชื่อที่ค้นหา</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function SalesPage() {
   const router = useRouter();
@@ -150,18 +220,10 @@ export default function SalesPage() {
                               </button>
                             </div>
                           ) : (
-                            <select 
-                              className="w-full text-sm border-gray-200 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                              onChange={(e) => handleLinkPet(receipt, e.target.value)}
-                              defaultValue=""
-                            >
-                              <option value="" disabled>ผูกกับสัตว์ป่วย (เลือกลูกค้า)</option>
-                              {pets?.map((pet) => (
-                                <option key={pet.id} value={pet.id}>
-                                  {pet.name} {pet.ownerName ? `(${pet.ownerName})` : ""}
-                                </option>
-                              ))}
-                            </select>
+                            <SearchablePetSelect 
+                              pets={pets || []} 
+                              onSelect={(petId) => handleLinkPet(receipt, petId)} 
+                            />
                           )}
                         </div>
                       </div>
