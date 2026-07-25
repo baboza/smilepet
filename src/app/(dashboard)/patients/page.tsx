@@ -106,8 +106,8 @@ export default function PatientsPage() {
                       <div className="mt-3 flex flex-wrap gap-2">
                         {owner.pets.map((pet: any) => (
                           <div key={pet.id} className="flex flex-col items-center gap-2 bg-gray-50 border border-gray-100 p-3 rounded-2xl min-w-[90px]">
-                            {pet.imageUrl ? (
-                              <img src={pet.imageUrl} alt={pet.name} className="w-16 h-16 object-cover rounded-full shadow-sm border-2 border-white" />
+                            {pet.photoUrl || pet.imageUrl ? (
+                              <img src={pet.photoUrl || pet.imageUrl} alt={pet.name} className="w-16 h-16 object-cover rounded-full shadow-sm border-2 border-white" />
                             ) : (
                               <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center text-3xl shadow-sm border-2 border-white">
                                 {pet.species === "แมว" ? "🐱" : "🐶"}

@@ -110,6 +110,14 @@ const fetchOwnerProfile = async (id: string) => {
 
     history.sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
 
+    let latestWeight = data.weight || "-";
+    let latestWeightDate = "";
+    const latestOpdWithWeight = history.find(h => h.category === "OPD" && h.details?.physicalExam?.weight);
+    if (latestOpdWithWeight) {
+      latestWeight = latestOpdWithWeight.details.physicalExam.weight;
+      latestWeightDate = latestOpdWithWeight.date;
+    }
+
     return {
       id: petId,
       name: data.name,
@@ -119,7 +127,8 @@ const fetchOwnerProfile = async (id: string) => {
       color: data.color || "-",
       sex: data.sex || "-",
       sterilization: data.sterilization || "-",
-      weight: data.weight || "-",
+      weight: latestWeight,
+      weightDate: latestWeightDate,
       photoUrl: data.imageUrl || data.photoUrl || "",
       history: history
     };
@@ -251,7 +260,9 @@ export default function OwnerProfilePage({ params }: { params: Promise<{ id: str
                         <p className="col-span-2"><span className="font-bold text-gray-800">การทำหมัน:</span> {pet.sterilization || "ไม่ระบุ"}</p>
                       </div>
                       <div className="flex justify-center sm:justify-start gap-4 text-sm font-bold text-gray-700">
-                        <span className="bg-green-50 text-green-700 px-3 py-1 rounded-lg">นน: {pet.weight}</span>
+                        <span className="bg-green-50 text-green-700 px-3 py-1 rounded-lg">
+                          นน: {pet.weight !== "-" ? `${pet.weight} kg${pet.weightDate ? ` (${pet.weightDate})` : ''}` : "-"}
+                        </span>
                       </div>
                     </div>
                   </div>
