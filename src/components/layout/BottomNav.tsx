@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, CalendarDays, Scissors, Menu, Search } from "lucide-react";
+import { LayoutDashboard, Users, CalendarDays, Scissors, Menu, Search, ClipboardList } from "lucide-react";
 import { useSearchStore } from "@/components/ui/GlobalSearchModal";
 
 export function BottomNav() {
@@ -13,9 +13,9 @@ export function BottomNav() {
   const navItems = [
     { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
     { label: "Patients", icon: Users, href: "/patients" },
-    { label: "Search", icon: Search, action: openSearch },
     { label: "Appointment", icon: CalendarDays, href: "/appointments" },
     { label: "Grooming", icon: Scissors, href: "/grooming" },
+    { label: "Admit", icon: ClipboardList, href: "/admit" },
   ];
 
   return (

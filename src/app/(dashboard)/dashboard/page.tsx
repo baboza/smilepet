@@ -190,7 +190,7 @@ export default function DashboardPage() {
           <p className="text-xs text-gray-500 font-bold">{stats?.clinicAddress || "คลินิกหลัก"}</p>
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={openSearch} className="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors md:hidden">
+          <button onClick={openSearch} className="flex items-center justify-center p-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-full transition-colors">
             <Search size={20} />
           </button>
           <button className="relative p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors">

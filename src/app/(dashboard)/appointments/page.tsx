@@ -5,8 +5,9 @@ import { Search, Plus, Calendar as CalendarIcon, Clock, User } from "lucide-reac
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { db } from "@/lib/firebase/config";
-import { collection, getDocs, query, orderBy, doc, updateDoc, where } from "firebase/firestore";
+import { updateDoc, doc, collection, getDocs, query, orderBy, where } from "firebase/firestore";
 import { SearchBar } from "@/components/ui/SearchBar";
+import { useSearchStore } from "@/components/ui/GlobalSearchModal";
 
 const fetchAppointments = async () => {
   const appointmentsSnap = await getDocs(query(collection(db, "appointments"), orderBy("date", "desc")));
@@ -59,6 +60,7 @@ export default function AppointmentsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterDate, setFilterDate] = useState("ทั้งหมด");
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+  const { openSearch } = useSearchStore();
   
   const { data: appointments, isLoading, refetch } = useQuery({
     queryKey: ["appointments"],
@@ -125,12 +127,17 @@ export default function AppointmentsPage() {
       <div className="bg-white px-4 py-4 shadow-sm sticky top-0 z-30 space-y-4">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold text-gray-900">ตารางนัดหมาย</h1>
-          <Link 
-            href="/appointments/new"
-            className="flex items-center justify-center w-10 h-10 bg-blue-50 text-blue-600 rounded-full hover:bg-blue-100 transition-colors"
-          >
-            <Plus size={20} strokeWidth={2.5} />
-          </Link>
+          <div className="flex items-center gap-3">
+            <button onClick={openSearch} className="flex items-center justify-center p-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-full transition-colors">
+              <Search size={20} />
+            </button>
+            <Link 
+              href="/appointments/new"
+              className="flex items-center justify-center w-10 h-10 bg-blue-50 text-blue-600 rounded-full hover:bg-blue-100 transition-colors"
+            >
+              <Plus size={20} strokeWidth={2.5} />
+            </Link>
+          </div>
         </div>
 
         <SearchBar 

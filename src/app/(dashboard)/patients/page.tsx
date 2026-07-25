@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { db } from "@/lib/firebase/config";
 import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import { SearchBar } from "@/components/ui/SearchBar";
+import { useSearchStore } from "@/components/ui/GlobalSearchModal";
 
 const fetchOwnersAndPets = async () => {
   const ownersSnap = await getDocs(query(collection(db, "owners"), orderBy("createdAt", "desc")));
@@ -31,6 +32,7 @@ export default function PatientsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 20;
+  const { openSearch } = useSearchStore();
   
   const { data: owners, isLoading } = useQuery({
     queryKey: ["owners-and-pets"],
@@ -61,12 +63,17 @@ export default function PatientsPage() {
       <div className="bg-white px-4 py-4 shadow-sm sticky top-0 z-30 space-y-4">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold text-gray-900">ทะเบียนลูกค้า & สัตว์ป่วย</h1>
-          <Link 
-            href="/patients/register"
-            className="flex items-center justify-center w-10 h-10 bg-blue-50 text-blue-600 rounded-full hover:bg-blue-100 transition-colors"
-          >
-            <UserPlus size={20} />
-          </Link>
+          <div className="flex items-center gap-3">
+            <button onClick={openSearch} className="flex items-center justify-center p-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-full transition-colors">
+              <Search size={20} />
+            </button>
+            <Link 
+              href="/patients/register"
+              className="flex items-center justify-center w-10 h-10 bg-blue-50 text-blue-600 rounded-full hover:bg-blue-100 transition-colors"
+            >
+              <UserPlus size={20} />
+            </Link>
+          </div>
         </div>
 
         <SearchBar 
