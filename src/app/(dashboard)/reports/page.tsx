@@ -11,7 +11,8 @@ const fetchLoyverseInventory = async () => {
   try {
     const res = await fetch("/api/loyverse/inventory");
     if (!res.ok) return [];
-    return await res.json();
+    const data = await res.json();
+    return data.items || data.inventory_levels || [];
   } catch {
     return [];
   }
@@ -59,6 +60,7 @@ export default function ReportsPage() {
   const isWithinPeriod = (dateStr: string) => {
     if (!dateStr) return false;
     const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return false;
     return isAfter(d, cutoffDate) || d.getTime() === cutoffDate.getTime();
   };
 
