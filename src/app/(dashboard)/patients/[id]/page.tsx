@@ -342,7 +342,19 @@ export default function OwnerProfilePage({ params }: { params: Promise<{ id: str
                                       {(record.details.chiefComplaint?.items?.length > 0 || record.details.chiefComplaint?.others) && (
                                         <p><span className="font-bold text-gray-700">อาการ:</span> {[...(record.details.chiefComplaint?.items || []), record.details.chiefComplaint?.others].filter(Boolean).join(", ")}</p>
                                       )}
-                                      {record.details.diagnosis?.length > 0 && <p><span className="font-bold text-gray-700">วินิจฉัย:</span> {record.details.diagnosis.join(", ")}</p>}
+                                      {(record.details.diagnosis?.length > 0 || record.details.diagnosisOthers) && (
+                                        <p><span className="font-bold text-gray-700">วินิจฉัย:</span> {[...(record.details.diagnosis || []), record.details.diagnosisOthers].filter(Boolean).join(", ")}</p>
+                                      )}
+                                      {record.details.physicalExam?.bodySystem && (Object.values(record.details.physicalExam.bodySystem).some(v => v === true) || record.details.physicalExam.bodySystem.OtherDetail) && (
+                                        <p><span className="font-bold text-gray-700">ความผิดปกติที่พบ:</span> {
+                                          [
+                                            ...Object.entries(record.details.physicalExam.bodySystem)
+                                              .filter(([k, v]) => v === true && k !== 'Other' && k !== 'OtherDetail')
+                                              .map(([k]) => k),
+                                            record.details.physicalExam.bodySystem.OtherDetail
+                                          ].filter(Boolean).join(", ")
+                                        }</p>
+                                      )}
                                       {record.details.treatment && Object.keys(record.details.treatment).some(k => record.details.treatment[k]) && (
                                         <p><span className="font-bold text-gray-700">การรักษา:</span> {Object.keys(record.details.treatment).filter(k => record.details.treatment[k]).join(", ")}</p>
                                       )}

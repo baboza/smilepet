@@ -288,13 +288,21 @@ function OpdFormContent() {
           <div className="pt-3 border-t border-gray-200">
             <label className="block text-xs font-bold text-gray-700 mb-3">Body System Abnormalities</label>
             <div className="flex flex-wrap gap-x-5 gap-y-3">
-              {["Eye", "Ear", "Skin", "Lung", "Heart", "Abdomen"].map((sys) => (
+              {["Eye", "Ear", "Skin", "Lung", "Heart", "Abdomen", "Other"].map((sys) => (
                 <label key={sys} className="flex items-center gap-2 text-sm font-medium text-gray-800 cursor-pointer">
                   <input type="checkbox" {...register(`physicalExam.bodySystem.${sys as any}`)} className="w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-500" />
                   {sys}
                 </label>
               ))}
             </div>
+            {watch("physicalExam.bodySystem.Other") && (
+              <input 
+                {...register("physicalExam.bodySystem.OtherDetail")}
+                type="text" 
+                placeholder="ระบุความผิดปกติอื่นๆ..."
+                className="w-full mt-3 p-3 border border-gray-300 rounded-xl bg-gray-50 text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm placeholder-gray-500"
+              />
+            )}
           </div>
         </section>
 
@@ -321,6 +329,12 @@ function OpdFormContent() {
               );
             })}
           </div>
+          <input 
+            {...register("diagnosisOthers")}
+            type="text" 
+            placeholder="การวินิจฉัยอื่นๆ..."
+            className="w-full mt-2 p-3 border border-gray-300 rounded-xl bg-gray-50 text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm placeholder-gray-500"
+          />
         </section>
 
         {/* 4. Treatment */}

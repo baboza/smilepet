@@ -28,9 +28,12 @@ export const opdSchema = z.object({
       LymphNode: z.boolean().default(false),
       Musculoskeletal: z.boolean().default(false),
       Neurologic: z.boolean().default(false),
+      Other: z.boolean().default(false),
+      OtherDetail: z.string().optional(),
     }).optional(),
   }),
   diagnosis: z.array(z.string()).optional(),
+  diagnosisOthers: z.string().optional(),
   treatment: z.object({
     Injection: z.boolean().default(false),
     Fluid: z.boolean().default(false),
