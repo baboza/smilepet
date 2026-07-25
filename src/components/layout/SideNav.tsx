@@ -36,7 +36,6 @@ export function SideNav() {
     { label: "Patients / OPD", icon: Users, href: "/patients" },
     { label: "Appointment", icon: CalendarDays, href: "/appointments" },
     { label: "Grooming", icon: Scissors, href: "/grooming" },
-    { label: "คลังยาและสินค้า (Loyverse)", icon: Package, href: "/inventory" },
     { label: "Cat Hotel", icon: Home, href: "/hotel" },
     { label: "Admit (แมว)", icon: ClipboardList, href: "/admit" },
     { label: "Reports", icon: PieChart, href: "/reports" },

@@ -35,7 +35,6 @@ export default function MorePage() {
   };
 
   const moreItems = [
-    { label: "คลังยาและสินค้า (Loyverse)", icon: Package, href: "/inventory", color: "text-purple-600", bg: "bg-purple-50" },
     { label: "Cat Hotel", icon: Home, href: "/hotel", color: "text-orange-500", bg: "bg-orange-50" },
     { label: "Admit (แมว)", icon: ClipboardList, href: "/admit", color: "text-blue-500", bg: "bg-blue-50" },
     { label: "Reports", icon: PieChart, href: "/reports", color: "text-pink-500", bg: "bg-pink-50" },

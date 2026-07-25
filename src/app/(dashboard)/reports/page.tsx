@@ -7,16 +7,6 @@ import { db } from "@/lib/firebase/config";
 import { collection, getDocs } from "firebase/firestore";
 import { startOfDay, startOfWeek, startOfMonth, isAfter } from "date-fns";
 
-const fetchLoyverseInventory = async () => {
-  try {
-    const res = await fetch("/api/loyverse/inventory");
-    if (!res.ok) return [];
-    const data = await res.json();
-    return data.items || data.inventory_levels || [];
-  } catch {
-    return [];
-  }
-};
 
 const fetchLoyverseRevenue = async (period: string) => {
   let min = "";
@@ -69,10 +59,6 @@ export default function ReportsPage() {
     queryFn: fetchReportData
   });
 
-  const { data: inventoryData, isLoading: invLoading } = useQuery({
-    queryKey: ["inventory"],
-    queryFn: fetchLoyverseInventory
-  });
 
   const { data: revenueData, isLoading: revLoading } = useQuery({
     queryKey: ["loyverseRevenue", reportPeriod],
@@ -131,12 +117,6 @@ export default function ReportsPage() {
     .slice(0, 5)
     .map(([name, qty]) => ({ name, qty }));
 
-  // 5. Low Stock
-  const lowStockThreshold = 10;
-  const lowStockItems = (inventoryData || [])
-    .filter((item: any) => item.in_stock !== null && item.in_stock <= lowStockThreshold)
-    .sort((a: any, b: any) => a.in_stock - b.in_stock)
-    .slice(0, 5);
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 pb-20">
@@ -274,38 +254,6 @@ export default function ReportsPage() {
           </div>
         )}
 
-        {/* Low Stock Warning */}
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-red-100">
-          <div className="flex items-center gap-2 mb-4 text-red-600">
-            <AlertCircle size={20} />
-            <h2 className="font-bold">สินค้าใกล้หมด (ต่ำกว่า {lowStockThreshold})</h2>
-          </div>
-          
-          {invLoading ? (
-            <p className="text-sm text-gray-500">กำลังตรวจสอบ...</p>
-          ) : lowStockItems.length > 0 ? (
-            <div className="space-y-3">
-              {lowStockItems.map((item: any, idx: number) => (
-                <div key={idx} className="flex items-center justify-between bg-red-50 p-3 rounded-xl">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center border border-red-100 shadow-sm shrink-0">
-                      <Package size={18} className="text-red-500" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-gray-900 line-clamp-1">{item.item_name}</p>
-                      <p className="text-xs text-gray-500">คงเหลือ: <span className="font-bold text-red-600">{item.in_stock}</span></p>
-                    </div>
-                  </div>
-                  <button className="px-3 py-1.5 bg-red-100 text-red-700 text-xs font-bold rounded-full whitespace-nowrap">
-                    สั่งซื้อ
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-gray-500 bg-gray-50 p-3 rounded-xl text-center">มีสต็อกเพียงพอทุกรายการ</p>
-          )}
-        </div>
 
       </div>
     </div>
