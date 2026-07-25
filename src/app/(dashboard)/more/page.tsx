@@ -7,7 +7,7 @@ import { auth, db } from "@/lib/firebase/config";
 import { doc, getDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { ClipboardList, Stethoscope, UserPlus, QrCode, Home, PieChart, ShieldAlert, LogOut } from "lucide-react";
+import { ClipboardList, Stethoscope, UserPlus, QrCode, Home, PieChart, ShieldAlert, LogOut, Package } from "lucide-react";
 
 export default function MorePage() {
   const { user } = useAuth();
@@ -35,9 +35,10 @@ export default function MorePage() {
   };
 
   const moreItems = [
+    { label: "คลังยาและสินค้า (Loyverse)", icon: Package, href: "/inventory", color: "text-purple-600", bg: "bg-purple-50" },
     { label: "Cat Hotel", icon: Home, href: "/hotel", color: "text-orange-500", bg: "bg-orange-50" },
     { label: "Admit (แมว)", icon: ClipboardList, href: "/admit", color: "text-blue-500", bg: "bg-blue-50" },
-    { label: "Reports", icon: PieChart, href: "/reports", color: "text-purple-500", bg: "bg-purple-50" },
+    { label: "Reports", icon: PieChart, href: "/reports", color: "text-pink-500", bg: "bg-pink-50" },
     { label: "Admin", icon: ShieldAlert, href: "/admin", color: "text-red-500", bg: "bg-red-50" },
   ];
 

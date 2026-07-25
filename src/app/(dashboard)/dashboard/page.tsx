@@ -74,12 +74,25 @@ const fetchDashboardStats = async () => {
 
   const avgAge = petStats.validAgeCount > 0 ? (petStats.totalAgeYears / petStats.validAgeCount).toFixed(1) : "0";
 
+  let loyverseRevenue = "0";
+  try {
+    const revRes = await fetch("/api/loyverse/receipts");
+    if (revRes.ok) {
+      const revData = await revRes.json();
+      if (revData.totalRevenue !== undefined) {
+        loyverseRevenue = new Intl.NumberFormat('th-TH').format(revData.totalRevenue);
+      }
+    }
+  } catch (e) {
+    console.error("Error fetching Loyverse revenue:", e);
+  }
+
   const stats = {
     patientsToday: opdSnap.data().count,
     appointmentsToday: appointmentsTodaySnap.data().count,
     boarding: boardingSnap.data().count,
     grooming: groomingSnap.data().count,
-    revenue: "Loyverse",
+    revenue: loyverseRevenue === "0" ? "Loyverse" : `฿ ${loyverseRevenue}`,
     admitted: admitSnap.data().count,
     petStats: {
       ...petStats,
