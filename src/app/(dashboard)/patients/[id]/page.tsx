@@ -1,7 +1,7 @@
 "use client";
 
 import React, { use, useState } from "react";
-import { ArrowLeft, Edit, Phone, MapPin, CalendarPlus, Scissors, Home, Stethoscope, FileText, ChevronDown, ChevronUp, Syringe, BugOff } from "lucide-react";
+import { ArrowLeft, Edit, Phone, MapPin, CalendarPlus, Scissors, Home, Stethoscope, FileText, ChevronDown, ChevronUp, Syringe, BugOff, Microscope, Printer } from "lucide-react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { db } from "@/lib/firebase/config";
@@ -57,14 +57,15 @@ const fetchOwnerProfile = async (id: string) => {
     
     let history: any[] = [];
 
-    const [opdSnap, aptSnap, groomSnap, hotelSnap, receiptSnap, vacSnap, parasiteSnap] = await Promise.all([
+    const [opdSnap, aptSnap, groomSnap, hotelSnap, receiptSnap, vacSnap, parasiteSnap, labSnap] = await Promise.all([
       getDocs(query(collection(db, "opd_records"), where("petId", "==", petId))),
       getDocs(query(collection(db, "appointments"), where("petId", "==", petId))),
       getDocs(query(collection(db, "grooming_queues"), where("petId", "==", petId))),
       getDocs(query(collection(db, "hotel_bookings"), where("petId", "==", petId))),
       getDocs(query(collection(db, "linked_receipts"), where("petId", "==", petId))),
       getDocs(query(collection(db, "vaccinations"), where("petId", "==", petId))),
-      getDocs(query(collection(db, "parasite_preventions"), where("petId", "==", petId)))
+      getDocs(query(collection(db, "parasite_preventions"), where("petId", "==", petId))),
+      getDocs(query(collection(db, "lab_records"), where("petId", "==", petId)))
     ]);
 
     opdSnap.docs.forEach(d => {
@@ -145,13 +146,35 @@ const fetchOwnerProfile = async (id: string) => {
     });
 
     parasiteSnap.docs.forEach(d => {
-      const p = d.data();
+      const para = d.data();
+      let paraDate = para.date;
+      if (para.createdAt) {
+        const d = new Date(para.createdAt);
+        paraDate = `${d.toLocaleDateString('th-TH')} ${d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}`;
+      }
       history.push({
         id: d.id,
         category: "กำจัดปรสิต",
-        date: p.date,
-        title: p.preventionName,
-        details: p
+        date: paraDate,
+        title: "ประวัติการกำจัดปรสิต/เห็บหมัด",
+        details: para
+      });
+    });
+
+    labSnap.docs.forEach(d => {
+      const lab = d.data();
+      let labDate = lab.createdAt;
+      if (lab.createdAt) {
+        const d = new Date(lab.createdAt);
+        labDate = `${d.toLocaleDateString('th-TH')} ${d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}`;
+      }
+      history.push({
+        id: d.id,
+        category: "ผลแล็บ",
+        date: labDate,
+        title: lab.title || "ผลแล็บ / X-Ray",
+        details: lab,
+        createdAt: lab.createdAt
       });
     });
 
@@ -320,7 +343,7 @@ export default function OwnerProfilePage({ params }: { params: Promise<{ id: str
                   </div>
 
                   {/* Quick Actions for this pet */}
-                  <div className="grid grid-cols-6 gap-2 mt-4 pt-3 border-t border-gray-100">
+                  <div className="grid grid-cols-4 sm:grid-cols-8 gap-2 mt-4 pt-3 border-t border-gray-100">
                     <Link href={`/opd/new?petId=${pet.id}`} className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-blue-50 transition-colors text-blue-600 group">
                       <Stethoscope size={18} className="group-active:scale-95 transition-transform" />
                       <span className="text-[10px] font-bold">OPD</span>
@@ -344,6 +367,14 @@ export default function OwnerProfilePage({ params }: { params: Promise<{ id: str
                     <Link href={`/hotel/new?petId=${pet.id}`} className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-orange-50 transition-colors text-orange-600 group">
                       <Home size={18} className="group-active:scale-95 transition-transform" />
                       <span className="text-[10px] font-bold">ฝากเลี้ยง</span>
+                    </Link>
+                    <Link href={`/patients/${id}/lab?petId=${pet.id}`} className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-indigo-50 transition-colors text-indigo-600 group">
+                      <Microscope size={18} className="group-active:scale-95 transition-transform" />
+                      <span className="text-[10px] font-bold">แล็บ/X-Ray</span>
+                    </Link>
+                    <Link href={`/patients/${id}/forms?petId=${pet.id}`} className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-rose-50 transition-colors text-rose-600 group">
+                      <Printer size={18} className="group-active:scale-95 transition-transform" />
+                      <span className="text-[10px] font-bold">ฟอร์ม</span>
                     </Link>
                   </div>
 
@@ -372,6 +403,7 @@ export default function OwnerProfilePage({ params }: { params: Promise<{ id: str
                                 record.category === "นัดหมาย" ? "bg-mint-500" :
                                 record.category === "ชำระเงิน" ? "bg-green-500" :
                                 record.category === "อาบน้ำตัดขน" ? "bg-purple-500" :
+                                record.category === "ผลแล็บ" ? "bg-indigo-500" :
                                 "bg-orange-500"
                               }`}>
                               </div>
@@ -383,6 +415,7 @@ export default function OwnerProfilePage({ params }: { params: Promise<{ id: str
                                 record.category === "นัดหมาย" ? "bg-mint-50/50" :
                                 record.category === "ชำระเงิน" ? "bg-green-50/50" :
                                 record.category === "อาบน้ำตัดขน" ? "bg-purple-50/50" :
+                                record.category === "ผลแล็บ" ? "bg-indigo-50/50" :
                                 "bg-orange-50/50"
                               }`}>
                                 <div className="flex justify-between items-start mb-2 pb-2 border-b border-gray-200">
@@ -401,6 +434,7 @@ export default function OwnerProfilePage({ params }: { params: Promise<{ id: str
                                     record.category === "นัดหมาย" ? "bg-mint-100 text-mint-700" :
                                     record.category === "ชำระเงิน" ? "bg-green-100 text-green-700" :
                                     record.category === "อาบน้ำตัดขน" ? "bg-purple-100 text-purple-700" :
+                                    record.category === "ผลแล็บ" ? "bg-indigo-100 text-indigo-700" :
                                     "bg-orange-100 text-orange-700"
                                   }`}>
                                     {record.category}
@@ -449,6 +483,29 @@ export default function OwnerProfilePage({ params }: { params: Promise<{ id: str
                                       {record.details.notes && <p><span className="font-bold text-gray-700">หมายเหตุ:</span> {record.details.notes}</p>}
                                       {record.details.nextAppointmentDate && <p><span className="font-bold text-gray-700">นัดครั้งต่อไป:</span> {record.details.nextAppointmentDate}</p>}
                                     </>
+                                  )}
+
+                                  {record.category === "กำจัดปรสิต" && (
+                                    <>
+                                      {record.details.weight && <p><span className="font-bold text-gray-700">น้ำหนัก:</span> {record.details.weight} kg</p>}
+                                      <p><span className="font-bold text-gray-700">ยาที่ใช้:</span> {record.details.preventionName}</p>
+                                      {record.details.notes && <p><span className="font-bold text-gray-700">หมายเหตุ:</span> {record.details.notes}</p>}
+                                      {record.details.nextAppointmentDate && <p><span className="font-bold text-gray-700">นัดครั้งต่อไป:</span> {record.details.nextAppointmentDate}</p>}
+                                    </>
+                                  )}
+
+                                  {record.category === "ผลแล็บ" && (
+                                    <div className="mt-2">
+                                      <a 
+                                        href={record.details.fileUrl} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-indigo-200 text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors"
+                                      >
+                                        {record.details.fileType === "image" ? <ImageIcon size={14} /> : <FileText size={14} />}
+                                        ดูไฟล์แนบ ({record.details.fileName})
+                                      </a>
+                                    </div>
                                   )}
 
                                   {record.category === "อาบน้ำตัดขน" && (

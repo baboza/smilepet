@@ -11,6 +11,7 @@ import { collection, query, where, getDocs, orderBy, limit, getCountFromServer, 
 import { startOfDay, format, isToday } from "date-fns";
 import Link from "next/link";
 import { useSearchStore } from "@/components/ui/GlobalSearchModal";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const fetchAgendaData = async () => {
   const todayStr = format(new Date(), "yyyy-MM-dd");
@@ -136,6 +137,63 @@ const fetchDashboardStats = async () => {
     console.error("Error fetching Loyverse revenue:", e);
   }
 
+  // --- Fetch last 7 days chart data ---
+  const chartData = [];
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+  sevenDaysAgo.setHours(0, 0, 0, 0);
+
+  const [opdDocs, vacDocs, paraDocs] = await Promise.all([
+    getDocs(query(collection(db, "opd_records"), where("createdAt", ">=", sevenDaysAgo.toISOString()))),
+    getDocs(query(collection(db, "vaccinations"), where("createdAt", ">=", sevenDaysAgo.toISOString()))),
+    getDocs(query(collection(db, "parasite_preventions"), where("createdAt", ">=", sevenDaysAgo.toISOString())))
+  ]);
+
+  // Group by day
+  const casesByDay: Record<string, { opd: number, vaccine: number, parasite: number }> = {};
+  
+  // Initialize last 7 days
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(sevenDaysAgo);
+    d.setDate(d.getDate() + i);
+    const dateStr = format(d, "dd/MM");
+    casesByDay[dateStr] = { opd: 0, vaccine: 0, parasite: 0 };
+  }
+
+  opdDocs.forEach(doc => {
+    const data = doc.data();
+    if (data.createdAt) {
+      const dateStr = format(new Date(data.createdAt), "dd/MM");
+      if (casesByDay[dateStr]) casesByDay[dateStr].opd++;
+    }
+  });
+  
+  vacDocs.forEach(doc => {
+    const data = doc.data();
+    if (data.createdAt) {
+      const dateStr = format(new Date(data.createdAt), "dd/MM");
+      if (casesByDay[dateStr]) casesByDay[dateStr].vaccine++;
+    }
+  });
+  
+  paraDocs.forEach(doc => {
+    const data = doc.data();
+    if (data.createdAt) {
+      const dateStr = format(new Date(data.createdAt), "dd/MM");
+      if (casesByDay[dateStr]) casesByDay[dateStr].parasite++;
+    }
+  });
+
+  for (const [date, counts] of Object.entries(casesByDay)) {
+    chartData.push({
+      name: date,
+      OPD: counts.opd,
+      Vaccine: counts.vaccine,
+      Parasite: counts.parasite
+    });
+  }
+  // ------------------------------------
+
   const stats = {
     patientsToday: opdSnap.data().count,
     appointmentsToday: appointmentsTodaySnap.data().count,
@@ -147,6 +205,7 @@ const fetchDashboardStats = async () => {
       ...petStats,
       avgAge
     },
+    chartData,
     clinicAddress: ""
   };
   
@@ -359,6 +418,50 @@ export default function DashboardPage() {
             />
           </div>
         )}
+
+        {/* Analytics Chart */}
+        <div className="mt-8 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <Activity size={20} className="text-blue-500" /> สถิติเคสย้อนหลัง 7 วัน
+            </h2>
+          </div>
+          
+          {statsLoading ? (
+            <div className="h-64 bg-gray-200 animate-pulse rounded-2xl border border-gray-100"></div>
+          ) : (
+            <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={stats?.chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorOPD" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="colorVaccine" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="colorParasite" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6b7280' }} dy={10} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6b7280' }} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                    labelStyle={{ fontWeight: 'bold', color: '#111827', marginBottom: '4px' }}
+                  />
+                  <Area type="monotone" dataKey="OPD" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorOPD)" />
+                  <Area type="monotone" dataKey="Vaccine" name="วัคซีน" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorVaccine)" />
+                  <Area type="monotone" dataKey="Parasite" name="กำจัดปรสิต" stroke="#f59e0b" strokeWidth={2} fillOpacity={1} fill="url(#colorParasite)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
 
         {/* Pet Statistics Section */}
         <div className="mt-8">
