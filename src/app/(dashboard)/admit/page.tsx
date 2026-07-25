@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Plus, Activity, Calendar, Pill } from "lucide-react";
+import { Search, Plus, Activity, Calendar, Pill, X } from "lucide-react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { db } from "@/lib/firebase/config";
@@ -36,6 +36,17 @@ const fetchAdmitRecords = async () => {
 export default function AdmitPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+
+  const getLocalDate = () => {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    return now.toISOString().split("T")[0];
+  };
+
+  const [dischargeModalData, setDischargeModalData] = useState<any>(null);
+  const [totalCost, setTotalCost] = useState("");
+  const [dischargeDate, setDischargeDate] = useState(getLocalDate());
+  const [dischargeNotes, setDischargeNotes] = useState("");
   
   const { data: records, isLoading, refetch } = useQuery({
     queryKey: ["admitRecords"],
@@ -59,6 +70,34 @@ export default function AdmitPage() {
       console.error(error);
       alert("เกิดข้อผิดพลาดในการอัปเดตสถานะ");
     }
+  };
+
+  const handleDischargeSubmit = async () => {
+    if (!dischargeModalData) return;
+    try {
+      await updateDoc(doc(db, "admit_records", dischargeModalData.id), {
+        status: "กลับบ้านแล้ว",
+        dischargeDate: dischargeDate,
+        totalCost: totalCost || "0",
+        dischargeNotes: dischargeNotes
+      });
+      setDischargeModalData(null);
+      setTotalCost("");
+      setDischargeNotes("");
+      setDischargeDate(getLocalDate());
+      refetch();
+    } catch (error) {
+      console.error(error);
+      alert("เกิดข้อผิดพลาดในการบันทึกการจำหน่าย");
+    }
+  };
+
+  const calculateDays = (inDate: string, outDate: string) => {
+    if (!inDate || !outDate || inDate === "-" || outDate === "-") return 0;
+    const d1 = new Date(inDate);
+    const d2 = new Date(outDate);
+    const diff = (d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24);
+    return Math.max(1, Math.ceil(diff)); // At least 1 day
   };
 
   return (
@@ -127,7 +166,18 @@ export default function AdmitPage() {
                   {openDropdownId === rec.id && (
                     <div className="absolute top-8 right-0 bg-white border border-gray-200 rounded-xl shadow-lg z-20 overflow-hidden w-36">
                       <button onClick={() => handleUpdateStatus(rec.id, "กำลังรักษา")} className="w-full text-left px-4 py-3 text-sm font-bold text-red-600 hover:bg-gray-50 border-b border-gray-100">กำลังรักษา</button>
-                      <button onClick={() => handleUpdateStatus(rec.id, "กลับบ้านแล้ว")} className="w-full text-left px-4 py-3 text-sm font-bold text-gray-600 hover:bg-gray-50">กลับบ้านแล้ว</button>
+                      <button 
+                        onClick={() => {
+                          setOpenDropdownId(null);
+                          setDischargeModalData(rec);
+                          setDischargeDate(getLocalDate());
+                          setTotalCost("");
+                          setDischargeNotes("");
+                        }} 
+                        className="w-full text-left px-4 py-3 text-sm font-bold text-gray-600 hover:bg-gray-50"
+                      >
+                        ทำเรื่องจำหน่าย
+                      </button>
                     </div>
                   )}
                 </div>
@@ -163,6 +213,70 @@ export default function AdmitPage() {
           </div>
         )}
       </div>
+
+      {/* Discharge Modal */}
+      {dischargeModalData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="p-4 border-b border-gray-100 flex items-center justify-between shrink-0">
+              <h2 className="font-bold text-gray-900">สรุปการแอดมิท (จำหน่าย/กลับบ้าน)</h2>
+              <button onClick={() => setDischargeModalData(null)} className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="p-4 space-y-4 overflow-y-auto">
+              <div className="bg-red-50 p-3 rounded-xl border border-red-100">
+                <p className="font-bold text-red-900">{dischargeModalData.petName}</p>
+                <p className="text-xs text-red-700 mt-0.5">เจ้าของ: {dischargeModalData.owner}</p>
+                <p className="text-xs text-red-700 mt-0.5">วันที่เข้า: {dischargeModalData.admitDate}</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-800 mb-1">วันที่จำหน่าย</label>
+                <input 
+                  type="date" 
+                  value={dischargeDate}
+                  onChange={(e) => setDischargeDate(e.target.value)}
+                  className="w-full p-2.5 border border-gray-300 rounded-xl bg-gray-50 text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-red-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  จำนวนวันแอดมิท: <span className="font-bold text-red-600">{calculateDays(dischargeModalData.admitDate, dischargeDate)} วัน</span>
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-800 mb-1">อาการตอนกลับ (อัปเดต)</label>
+                <textarea 
+                  rows={2}
+                  value={dischargeNotes}
+                  onChange={(e) => setDischargeNotes(e.target.value)}
+                  placeholder="เช่น ทานอาหารได้ปกติ, แผลแห้งดี..."
+                  className="w-full p-2.5 border border-gray-300 rounded-xl bg-gray-50 text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-red-500 text-sm"
+                ></textarea>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-800 mb-1">ค่าใช้จ่ายรวม (บาท)</label>
+                <input 
+                  type="number" 
+                  placeholder="เช่น 3500"
+                  value={totalCost}
+                  onChange={(e) => setTotalCost(e.target.value)}
+                  className="w-full p-2.5 border border-gray-300 rounded-xl bg-gray-50 text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-red-500"
+                />
+              </div>
+
+              <button 
+                onClick={handleDischargeSubmit}
+                className="w-full py-3 bg-red-600 text-white font-bold rounded-xl shadow-md hover:bg-red-700 active:scale-[0.98] transition-all"
+              >
+                ยืนยันการจำหน่าย
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

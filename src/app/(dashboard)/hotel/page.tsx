@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Plus, Home, Calendar, CheckCircle2 } from "lucide-react";
+import { Search, Plus, Home, Calendar, CheckCircle2, X } from "lucide-react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { db } from "@/lib/firebase/config";
@@ -35,6 +35,16 @@ const fetchBoardedCats = async () => {
 export default function HotelPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+
+  const getLocalDate = () => {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    return now.toISOString().split("T")[0];
+  };
+
+  const [checkoutModalData, setCheckoutModalData] = useState<any>(null);
+  const [totalCost, setTotalCost] = useState("");
+  const [actualCheckOut, setActualCheckOut] = useState(getLocalDate());
   
   const { data: cats, isLoading, refetch } = useQuery({
     queryKey: ["hotelCats"],
@@ -58,6 +68,32 @@ export default function HotelPage() {
       console.error(error);
       alert("เกิดข้อผิดพลาดในการอัปเดตสถานะ");
     }
+  };
+
+  const handleCheckoutSubmit = async () => {
+    if (!checkoutModalData) return;
+    try {
+      await updateDoc(doc(db, "hotel_bookings", checkoutModalData.id), {
+        status: "เช็คเอาท์แล้ว",
+        actualCheckOut: actualCheckOut,
+        totalCost: totalCost || "0"
+      });
+      setCheckoutModalData(null);
+      setTotalCost("");
+      setActualCheckOut(getLocalDate());
+      refetch();
+    } catch (error) {
+      console.error(error);
+      alert("เกิดข้อผิดพลาดในการบันทึก Check-out");
+    }
+  };
+
+  const calculateDays = (inDate: string, outDate: string) => {
+    if (!inDate || !outDate || inDate === "-" || outDate === "-") return 0;
+    const d1 = new Date(inDate);
+    const d2 = new Date(outDate);
+    const diff = (d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24);
+    return Math.max(1, Math.ceil(diff)); // At least 1 day
   };
 
   return (
@@ -126,7 +162,17 @@ export default function HotelPage() {
                   {openDropdownId === cat.id && (
                     <div className="absolute top-8 right-0 bg-white border border-gray-200 rounded-xl shadow-lg z-20 overflow-hidden w-36">
                       <button onClick={() => handleUpdateStatus(cat.id, "เช็คอินแล้ว")} className="w-full text-left px-4 py-3 text-sm font-bold text-mint-600 hover:bg-gray-50">เช็คอินแล้ว</button>
-                      <button onClick={() => handleUpdateStatus(cat.id, "เช็คเอาท์แล้ว")} className="w-full text-left px-4 py-3 text-sm font-bold text-gray-600 hover:bg-gray-50 border-t border-gray-100">เช็คเอาท์แล้ว</button>
+                      <button 
+                        onClick={() => {
+                          setOpenDropdownId(null);
+                          setCheckoutModalData(cat);
+                          setActualCheckOut(getLocalDate());
+                          setTotalCost("");
+                        }} 
+                        className="w-full text-left px-4 py-3 text-sm font-bold text-gray-600 hover:bg-gray-50 border-t border-gray-100"
+                      >
+                        ทำเรื่องเช็คเอาท์
+                      </button>
                     </div>
                   )}
                 </div>
@@ -157,6 +203,58 @@ export default function HotelPage() {
           </div>
         )}
       </div>
+
+      {/* Checkout Modal */}
+      {checkoutModalData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
+            <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+              <h2 className="font-bold text-gray-900">สรุปการฝากเลี้ยง (Check-out)</h2>
+              <button onClick={() => setCheckoutModalData(null)} className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-4 space-y-4">
+              <div className="bg-orange-50 p-3 rounded-xl border border-orange-100">
+                <p className="font-bold text-orange-900">{checkoutModalData.petName}</p>
+                <p className="text-xs text-orange-700 mt-0.5">เจ้าของ: {checkoutModalData.owner}</p>
+                <p className="text-xs text-orange-700 mt-0.5">วันที่เข้า: {checkoutModalData.checkIn}</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-800 mb-1">วันที่ออกจริง</label>
+                <input 
+                  type="date" 
+                  value={actualCheckOut}
+                  onChange={(e) => setActualCheckOut(e.target.value)}
+                  className="w-full p-2.5 border border-gray-300 rounded-xl bg-gray-50 text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  จำนวนวันเข้าพัก: <span className="font-bold text-orange-600">{calculateDays(checkoutModalData.checkIn, actualCheckOut)} วัน</span>
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-800 mb-1">ค่าใช้จ่ายรวม (บาท)</label>
+                <input 
+                  type="number" 
+                  placeholder="เช่น 1500"
+                  value={totalCost}
+                  onChange={(e) => setTotalCost(e.target.value)}
+                  className="w-full p-2.5 border border-gray-300 rounded-xl bg-gray-50 text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                />
+              </div>
+
+              <button 
+                onClick={handleCheckoutSubmit}
+                className="w-full py-3 bg-orange-600 text-white font-bold rounded-xl shadow-md hover:bg-orange-700 active:scale-[0.98] transition-all"
+              >
+                ยืนยัน Check-out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
