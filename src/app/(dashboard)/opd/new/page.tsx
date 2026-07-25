@@ -104,6 +104,7 @@ function OpdFormContent() {
       await addDoc(collection(db, "opd_records"), {
         ...data,
         doctorId: user?.uid || "unknown",
+        date: new Date().toISOString().split("T")[0],
         createdAt: new Date().toISOString()
       });
       router.push("/dashboard"); // or maybe to patient profile

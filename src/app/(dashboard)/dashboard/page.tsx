@@ -10,14 +10,16 @@ import { useQuery } from "@tanstack/react-query";
 import { collection, query, where, getDocs, orderBy, limit, getCountFromServer, doc, getDoc } from "firebase/firestore";
 
 const fetchDashboardStats = async () => {
-  const todayStr = new Date().toISOString().split("T")[0];
+  const now = new Date();
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  const todayStr = now.toISOString().split("T")[0];
 
   const opdSnap = await getCountFromServer(
     query(collection(db, "opd_records"), where("date", "==", todayStr))
   );
 
   const appointmentsTodaySnap = await getCountFromServer(
-    query(collection(db, "appointments"), where("appointmentDate", "==", todayStr))
+    query(collection(db, "appointments"), where("date", "==", todayStr))
   );
   
   const boardingSnap = await getCountFromServer(
@@ -157,31 +159,36 @@ export default function DashboardPage() {
               title="ตรวจรักษา (OPD)" 
               value={stats?.patientsToday || 0} 
               icon={Users} 
-              colorScheme="blue" 
+              colorScheme="blue"
+              onClick={() => router.push("/opd")}
             />
             <StatCard 
               title="นัดหมายวันนี้" 
               value={stats?.appointmentsToday || 0} 
               icon={Calendar} 
-              colorScheme="mint" 
+              colorScheme="mint"
+              onClick={() => router.push("/appointments")}
             />
             <StatCard 
               title="ฝากเลี้ยง (ตัว)" 
               value={stats?.boarding || 0} 
               icon={Home} 
-              colorScheme="orange" 
+              colorScheme="orange"
+              onClick={() => router.push("/hotel")}
             />
             <StatCard 
               title="คิวอาบน้ำตัดขน" 
               value={stats?.grooming || 0} 
               icon={Scissors} 
-              colorScheme="purple" 
+              colorScheme="purple"
+              onClick={() => router.push("/grooming")}
             />
             <StatCard 
               title="แอดมิท (Admit)" 
               value={stats?.admitted || 0} 
               icon={Activity} 
-              colorScheme="red" 
+              colorScheme="red"
+              onClick={() => router.push("/admit")}
             />
             <StatCard 
               title="รายรับ" 
