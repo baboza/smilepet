@@ -20,6 +20,7 @@ const petFormSchema = z.object({
   color: z.string().optional(),
   sex: z.string().optional(),
   sterilization: z.string().optional(),
+  weight: z.string().optional(),
   photoUrl: z.string().optional(),
 });
 
@@ -61,6 +62,7 @@ export default function EditPetPage({ params }: { params: Promise<{ petId: strin
         color: pet.color || "",
         sex: pet.sex || "",
         sterilization: pet.sterilization || "",
+        weight: pet.weight || "",
       });
       if (pet.photoUrl) {
         setPetImagePreview(pet.photoUrl);
@@ -95,6 +97,7 @@ export default function EditPetPage({ params }: { params: Promise<{ petId: strin
         color: data.color || "",
         sex: data.sex || "",
         sterilization: data.sterilization || "",
+        weight: data.weight || "",
         photoUrl: petPhotoUrl,
         updatedAt: new Date().toISOString()
       });
@@ -230,6 +233,16 @@ export default function EditPetPage({ params }: { params: Promise<{ petId: strin
                   <option value="ทำแล้ว">ทำแล้ว</option>
                 </select>
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-gray-800 mb-1">น้ำหนัก (กิโลกรัม)</label>
+              <input 
+                {...register("weight")}
+                type="text" 
+                className="w-full p-3 border border-gray-300 rounded-xl bg-gray-50 text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors"
+                placeholder="เช่น 5.2"
+              />
             </div>
           </section>
 

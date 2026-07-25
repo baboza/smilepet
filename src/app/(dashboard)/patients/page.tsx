@@ -77,7 +77,7 @@ export default function PatientsPage() {
       </div>
 
       {/* List */}
-      <div className="p-4 space-y-3">
+      <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
         {isLoading ? (
           [...Array(4)].map((_, i) => (
             <div key={i} className="bg-white p-4 rounded-2xl h-24 animate-pulse"></div>
@@ -126,7 +126,7 @@ export default function PatientsPage() {
             
             {/* Pagination Controls */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-between py-4 mt-4">
+              <div className="col-span-1 md:col-span-2 flex items-center justify-between py-4 mt-4">
                 <button 
                   onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                   disabled={currentPage === 1}
@@ -148,7 +148,7 @@ export default function PatientsPage() {
             )}
           </>
         ) : (
-          <div className="text-center py-10">
+          <div className="col-span-1 md:col-span-2 text-center py-10">
             <p className="text-gray-500 font-bold mb-2">ไม่พบข้อมูลลูกค้า</p>
             <p className="text-sm text-gray-400">ลองค้นหาด้วยคำอื่น หรือเพิ่มลูกค้าใหม่</p>
           </div>
