@@ -1,44 +1,110 @@
 "use client";
 
 import { useState } from "react";
-import { Download, FileText, Package, Calendar, Activity, Scissors, Home, CreditCard } from "lucide-react";
+import { Download, FileText, Package, Calendar, Activity, Scissors, Home, CreditCard, TrendingUp, Users, DollarSign, AlertCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { db } from "@/lib/firebase/config";
-import { collection, getCountFromServer } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
+import { startOfDay, startOfWeek, startOfMonth, isAfter } from "date-fns";
 
-const fetchMetrics = async () => {
-  const opdCount = (await getCountFromServer(collection(db, "opd_records"))).data().count;
-  const groomingCount = (await getCountFromServer(collection(db, "grooming_queues"))).data().count;
-  const hotelCount = (await getCountFromServer(collection(db, "hotel_bookings"))).data().count;
-  return { opdCount, groomingCount, hotelCount };
+const fetchLoyverseInventory = async () => {
+  try {
+    const res = await fetch("/api/loyverse/inventory");
+    if (!res.ok) return [];
+    return await res.json();
+  } catch {
+    return [];
+  }
+};
+
+const fetchReportData = async () => {
+  const [opdSnap, groomSnap, hotelSnap, petsSnap, receiptsSnap] = await Promise.all([
+    getDocs(collection(db, "opd_records")),
+    getDocs(collection(db, "grooming_queues")),
+    getDocs(collection(db, "hotel_bookings")),
+    getDocs(collection(db, "pets")),
+    getDocs(collection(db, "linked_receipts"))
+  ]);
+
+  return {
+    opd: opdSnap.docs.map(d => d.data()),
+    grooming: groomSnap.docs.map(d => d.data()),
+    hotel: hotelSnap.docs.map(d => d.data()),
+    pets: petsSnap.docs.map(d => d.data()),
+    receipts: receiptsSnap.docs.map(d => d.data()),
+  };
 };
 
 export default function ReportsPage() {
-  const [reportPeriod, setReportPeriod] = useState("ทั้งหมด");
+  const [reportPeriod, setReportPeriod] = useState("วันนี้");
 
-  const { data: metrics, isLoading } = useQuery({
-    queryKey: ["reportMetrics"],
-    queryFn: fetchMetrics
+  const { data: allData, isLoading } = useQuery({
+    queryKey: ["reportData"],
+    queryFn: fetchReportData
   });
 
-  const opdAmount = metrics?.opdCount || 0;
-  const groomingAmount = metrics?.groomingCount || 0;
-  const hotelAmount = metrics?.hotelCount || 0;
-  
+  const { data: inventoryData, isLoading: invLoading } = useQuery({
+    queryKey: ["inventory"],
+    queryFn: fetchLoyverseInventory
+  });
+
+  // Calculate cut-off date based on period
+  let cutoffDate = new Date(0); // All time
+  const now = new Date();
+  if (reportPeriod === "วันนี้") cutoffDate = startOfDay(now);
+  if (reportPeriod === "สัปดาห์นี้") cutoffDate = startOfWeek(now, { weekStartsOn: 1 }); // Monday start
+  if (reportPeriod === "เดือนนี้") cutoffDate = startOfMonth(now);
+
+  // Filter helper
+  const isWithinPeriod = (dateStr: string) => {
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
+    return isAfter(d, cutoffDate) || d.getTime() === cutoffDate.getTime();
+  };
+
+  // 1. Calculate KPIs
+  const opdAmount = allData?.opd.filter(d => isWithinPeriod(d.createdAt || d.date)).length || 0;
+  const groomingAmount = allData?.grooming.filter(d => isWithinPeriod(d.createdAt || d.bookingDate)).length || 0;
+  const hotelAmount = allData?.hotel.filter(d => isWithinPeriod(d.createdAt || d.checkIn)).length || 0;
   const totalCases = opdAmount + groomingAmount + hotelAmount;
 
+  const newPetsCount = allData?.pets.filter(d => isWithinPeriod(d.createdAt)).length || 0;
+  
+  const filteredReceipts = allData?.receipts.filter(d => isWithinPeriod(d.receipt_date || d.linkedAt)) || [];
+  const totalRevenue = filteredReceipts.reduce((sum, r) => sum + (Number(r.total_money) || 0), 0);
+
+  // 2. Cases Data
   const casesData = [
     { label: "OPD", amount: opdAmount, color: "bg-blue-500", percent: totalCases ? (opdAmount / totalCases) * 100 : 0 },
     { label: "Grooming", amount: groomingAmount, color: "bg-purple-500", percent: totalCases ? (groomingAmount / totalCases) * 100 : 0 },
     { label: "Cat Hotel", amount: hotelAmount, color: "bg-orange-500", percent: totalCases ? (hotelAmount / totalCases) * 100 : 0 },
   ];
 
-  // MVP: Hardcoded stock low
-  const stockLow = [
-    { name: "NexGard Spectra (S)", qty: 5 },
-    { name: "Royal Canin Fit (2kg)", qty: 2 },
-    { name: "น้ำเกลือ NSS 1000ml", qty: 10 },
-  ];
+  // 3. Pet Proportion
+  const dogsCount = allData?.pets.filter(d => isWithinPeriod(d.createdAt) && d.species === "สุนัข").length || 0;
+  const catsCount = allData?.pets.filter(d => isWithinPeriod(d.createdAt) && d.species === "แมว").length || 0;
+  const otherCount = newPetsCount - dogsCount - catsCount;
+
+  // 4. Top Selling Items
+  const itemCounts: Record<string, number> = {};
+  filteredReceipts.forEach(r => {
+    if (r.line_items) {
+      r.line_items.forEach((item: any) => {
+        itemCounts[item.item_name] = (itemCounts[item.item_name] || 0) + (item.quantity || 1);
+      });
+    }
+  });
+  const topSelling = Object.entries(itemCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([name, qty]) => ({ name, qty }));
+
+  // 5. Low Stock
+  const lowStockThreshold = 10;
+  const lowStockItems = (inventoryData || [])
+    .filter((item: any) => item.in_stock !== null && item.in_stock <= lowStockThreshold)
+    .sort((a: any, b: any) => a.in_stock - b.in_stock)
+    .slice(0, 5);
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 pb-20">
@@ -58,13 +124,13 @@ export default function ReportsPage() {
         </div>
 
         {/* Filter */}
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {["ทั้งหมด", "วันนี้", "สัปดาห์นี้", "เดือนนี้"].map((period) => (
+        <div className="flex gap-2 overflow-x-auto pb-1 hide-scrollbar">
+          {["วันนี้", "สัปดาห์นี้", "เดือนนี้", "ทั้งหมด"].map((period) => (
             <button 
               key={period}
               onClick={() => setReportPeriod(period)}
               className={`px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-colors ${
-                reportPeriod === period ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                reportPeriod === period ? "bg-gray-900 text-white shadow-md" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >
               {period}
@@ -73,64 +139,47 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      <div className="p-4 space-y-4">
+      <div className="p-4 space-y-5">
         
-        {/* KPI Summary */}
+        {/* Main Revenue KPI */}
+        <div className="bg-gradient-to-br from-mint-500 to-mint-600 rounded-2xl p-5 text-white shadow-sm">
+          <div className="flex items-center gap-2 mb-2 opacity-90">
+            <DollarSign size={20} />
+            <h2 className="text-sm font-bold">ยอดขายรวม (ที่ผูกบิลแล้ว)</h2>
+          </div>
+          <div className="text-3xl font-black mb-1">
+            {isLoading ? "..." : `฿ ${new Intl.NumberFormat('th-TH').format(totalRevenue)}`}
+          </div>
+          <p className="text-xs opacity-80">ช่วงเวลา: {reportPeriod}</p>
+        </div>
+
+        {/* Sub KPIs */}
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
             <div className="flex items-center gap-2 text-gray-500 mb-1">
-              <Calendar size={16} className="text-blue-500" />
+              <Users size={16} className="text-blue-500" />
+              <span className="text-xs font-bold">ผู้ป่วยใหม่</span>
+            </div>
+            <div className="text-2xl font-bold text-gray-900">
+              {isLoading ? "..." : newPetsCount} <span className="text-sm font-normal text-gray-500">ตัว</span>
+            </div>
+          </div>
+          <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+            <div className="flex items-center gap-2 text-gray-500 mb-1">
+              <Calendar size={16} className="text-purple-500" />
               <span className="text-xs font-bold">จำนวนเคสรวม</span>
             </div>
             <div className="text-2xl font-bold text-gray-900">
               {isLoading ? "..." : totalCases} <span className="text-sm font-normal text-gray-500">เคส</span>
             </div>
           </div>
-          <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-            <div className="flex items-center gap-2 text-gray-500 mb-1">
-              <Activity size={16} className="text-mint-500" />
-              <span className="text-xs font-bold">OPD</span>
-            </div>
-            <div className="text-xl font-bold text-gray-900">
-              {isLoading ? "..." : opdAmount} <span className="text-sm font-normal text-gray-500">เคส</span>
-            </div>
-          </div>
-          <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-            <div className="flex items-center gap-2 text-gray-500 mb-1">
-              <Scissors size={16} className="text-purple-500" />
-              <span className="text-xs font-bold">อาบน้ำตัดขน</span>
-            </div>
-            <div className="text-xl font-bold text-gray-900">
-              {isLoading ? "..." : groomingAmount} <span className="text-sm font-normal text-gray-500">คิว</span>
-            </div>
-          </div>
-          <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-            <div className="flex items-center gap-2 text-gray-500 mb-1">
-              <Home size={16} className="text-orange-500" />
-              <span className="text-xs font-bold">โรงแรมสัตว์เลี้ยง</span>
-            </div>
-            <div className="text-xl font-bold text-gray-900">
-              {isLoading ? "..." : hotelAmount} <span className="text-sm font-normal text-gray-500">ตัว</span>
-            </div>
-          </div>
         </div>
 
-        {/* Loyverse POS Notice */}
-        <div className="bg-blue-50 border border-blue-100 p-4 rounded-2xl flex gap-3 items-start">
-          <div className="bg-blue-100 p-2 rounded-full shrink-0">
-            <CreditCard size={18} className="text-blue-600" />
-          </div>
-          <div>
-            <h3 className="text-sm font-bold text-blue-900 mb-1">การจัดการรายได้</h3>
-            <p className="text-xs text-blue-700 leading-relaxed font-bold">
-              ยอดขายและการรับชำระเงินสามารถดูรายงานเชิงลึกและจัดการผ่านระบบ <strong>Loyverse POS</strong> ได้โดยตรง 
-            </p>
-          </div>
-        </div>
-
-        {/* Cases by Module */}
+        {/* Service Cases Stats */}
         <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-          <h2 className="font-bold text-gray-900">สัดส่วนจำนวนเคสแต่ละแผนก</h2>
+          <h2 className="font-bold text-gray-900 flex items-center gap-2">
+            <Activity size={18} className="text-gray-500" /> สัดส่วนจำนวนเคสแต่ละแผนก
+          </h2>
           
           <div className="space-y-4 pt-2">
             {casesData.map((item) => (
@@ -150,24 +199,80 @@ export default function ReportsPage() {
           </div>
         </div>
 
-        {/* Stock Alert */}
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2 text-gray-900 font-bold">
-              <Package size={18} className="text-red-500" />
-              <h2>สินค้า/ยา ใกล้หมด</h2>
+        {/* Pet Type Stats */}
+        {newPetsCount > 0 && (
+          <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+            <h2 className="font-bold text-gray-900 mb-4">สัตว์ป่วยใหม่ ({newPetsCount} ตัว)</h2>
+            <div className="flex items-center justify-between text-center divide-x divide-gray-100">
+              <div className="flex-1">
+                <div className="text-2xl mb-1">🐶</div>
+                <div className="font-bold text-gray-900">{dogsCount}</div>
+                <div className="text-xs text-gray-500">สุนัข</div>
+              </div>
+              <div className="flex-1">
+                <div className="text-2xl mb-1">🐱</div>
+                <div className="font-bold text-gray-900">{catsCount}</div>
+                <div className="text-xs text-gray-500">แมว</div>
+              </div>
+              {otherCount > 0 && (
+                <div className="flex-1">
+                  <div className="text-2xl mb-1">🐰</div>
+                  <div className="font-bold text-gray-900">{otherCount}</div>
+                  <div className="text-xs text-gray-500">อื่นๆ</div>
+                </div>
+              )}
             </div>
-            <button className="text-xs font-bold text-mint-600">ดูทั้งหมด</button>
+          </div>
+        )}
+
+        {/* Top Selling Items */}
+        {topSelling.length > 0 && (
+          <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+            <h2 className="font-bold text-gray-900 flex items-center gap-2 mb-4">
+              <TrendingUp size={18} className="text-green-500" /> สินค้า/ยา ยอดฮิต
+            </h2>
+            <div className="space-y-3">
+              {topSelling.map((item, idx) => (
+                <div key={idx} className="flex justify-between items-center text-sm border-b border-gray-50 pb-2 last:border-0 last:pb-0">
+                  <span className="text-gray-700 truncate pr-2 flex-1">{item.name}</span>
+                  <span className="font-bold text-gray-900 shrink-0">{item.qty} ชิ้น</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Low Stock Warning */}
+        <div className="bg-white p-5 rounded-2xl shadow-sm border border-red-100">
+          <div className="flex items-center gap-2 mb-4 text-red-600">
+            <AlertCircle size={20} />
+            <h2 className="font-bold">สินค้าใกล้หมด (ต่ำกว่า {lowStockThreshold})</h2>
           </div>
           
-          <div className="space-y-3">
-            {stockLow.map((item, idx) => (
-              <div key={idx} className="flex justify-between items-center py-2 border-b border-gray-50 last:border-0">
-                <span className="text-sm font-bold text-gray-800">{item.name}</span>
-                <span className="text-xs font-bold px-2 py-1 bg-red-50 text-red-600 rounded-md">เหลือ {item.qty}</span>
-              </div>
-            ))}
-          </div>
+          {invLoading ? (
+            <p className="text-sm text-gray-500">กำลังตรวจสอบ...</p>
+          ) : lowStockItems.length > 0 ? (
+            <div className="space-y-3">
+              {lowStockItems.map((item: any, idx: number) => (
+                <div key={idx} className="flex items-center justify-between bg-red-50 p-3 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center border border-red-100 shadow-sm shrink-0">
+                      <Package size={18} className="text-red-500" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-gray-900 line-clamp-1">{item.item_name}</p>
+                      <p className="text-xs text-gray-500">คงเหลือ: <span className="font-bold text-red-600">{item.in_stock}</span></p>
+                    </div>
+                  </div>
+                  <button className="px-3 py-1.5 bg-red-100 text-red-700 text-xs font-bold rounded-full whitespace-nowrap">
+                    สั่งซื้อ
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500 bg-gray-50 p-3 rounded-xl text-center">มีสต็อกเพียงพอทุกรายการ</p>
+          )}
         </div>
 
       </div>
