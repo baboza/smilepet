@@ -3,6 +3,7 @@
 import { BottomNav } from "./BottomNav";
 import { FloatingActionButton } from "./FloatingActionButton";
 import { SideNav } from "./SideNav";
+import { GlobalSearchModal } from "@/components/ui/GlobalSearchModal";
 
 interface MobileShellProps {
   children: React.ReactNode;
@@ -29,6 +30,7 @@ export function MobileShell({ children, hideFab = false, hideBottomNav = false }
         {/* Bottom Navigation (hidden on desktop via its own component) */}
         {!hideBottomNav && <BottomNav />}
       </div>
+      <GlobalSearchModal />
     </div>
   );
 }

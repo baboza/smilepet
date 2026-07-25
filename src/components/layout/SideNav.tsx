@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, CalendarDays, ClipboardList, Menu, Stethoscope, UserPlus, QrCode, Scissors, Home, PieChart, ShieldAlert, Package } from "lucide-react";
+import { LayoutDashboard, Users, CalendarDays, ClipboardList, Menu, Stethoscope, UserPlus, QrCode, Scissors, Home, PieChart, ShieldAlert, Package, Search } from "lucide-react";
 import { useAuth } from "@/features/auth/contexts/AuthContext";
+import { useSearchStore } from "@/components/ui/GlobalSearchModal";
 import { signOut } from "firebase/auth";
 import { auth, db } from "@/lib/firebase/config";
 import { doc, getDoc } from "firebase/firestore";
@@ -15,6 +16,7 @@ export function SideNav() {
   const { user } = useAuth();
   const router = useRouter();
   const [clinicData, setClinicData] = useState<{name: string, logo: string} | null>(null);
+  const { openSearch } = useSearchStore();
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -81,6 +83,10 @@ export function SideNav() {
 
         <div className="pt-6 mt-6 border-t border-gray-100 space-y-2">
           <p className="px-4 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Quick Actions</p>
+          <button onClick={openSearch} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-indigo-600 hover:bg-indigo-50 transition-all font-medium">
+            <Search size={20} />
+            <span className="text-sm">ค้นหาด่วน (Search)</span>
+          </button>
           <Link href="/opd/new" className="flex items-center gap-3 px-4 py-3 rounded-xl text-blue-600 hover:bg-blue-50 transition-all font-medium">
             <Stethoscope size={20} />
             <span className="text-sm">สร้าง OPD ใหม่</span>

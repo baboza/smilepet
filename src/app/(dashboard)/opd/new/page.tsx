@@ -3,7 +3,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { opdSchema, OpdFormValues } from "@/features/opd/schemas/opd";
-import { ArrowLeft, Save, Stethoscope, Activity, FileText, Pill, Search, ChevronDown } from "lucide-react";
+import { ArrowLeft, Save, Stethoscope, Activity, FileText, Pill, Search, ChevronDown, CheckCircle2, CalendarPlus, Home, DollarSign } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useRef, useEffect, Suspense } from "react";
@@ -51,6 +51,8 @@ function OpdFormContent() {
   const initialPetId = searchParams.get("petId") || "";
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [savedPetId, setSavedPetId] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -101,13 +103,14 @@ function OpdFormContent() {
   const onSubmit = async (data: any) => {
     setIsSubmitting(true);
     try {
-      await addDoc(collection(db, "opd_records"), {
+      const docRef = await addDoc(collection(db, "opd_records"), {
         ...data,
         doctorId: user?.uid || "unknown",
         date: new Date().toISOString().split("T")[0],
         createdAt: new Date().toISOString()
       });
-      router.push("/dashboard"); // or maybe to patient profile
+      setSavedPetId(data.petId);
+      setShowSuccessModal(true);
     } catch (error) {
       console.error(error);
       alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
@@ -365,6 +368,46 @@ function OpdFormContent() {
         </section>
 
       </div>
+      
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-xl animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-white shadow-sm">
+              <CheckCircle2 size={32} />
+            </div>
+            <h3 className="text-xl font-bold text-center text-gray-900 mb-2">บันทึกผลตรวจสำเร็จ</h3>
+            <p className="text-sm text-center text-gray-500 mb-6">คุณต้องการทำอะไรต่อไป?</p>
+            
+            <div className="space-y-3">
+              <button 
+                type="button"
+                onClick={() => router.push(`/appointments/new?petId=${savedPetId}`)}
+                className="w-full flex items-center justify-center gap-2 py-3 bg-mint-50 text-mint-700 font-bold rounded-xl hover:bg-mint-100 transition-colors"
+              >
+                <CalendarPlus size={18} />
+                นัดหมายครั้งต่อไป
+              </button>
+              <button 
+                type="button"
+                onClick={() => router.push(`/admit`)}
+                className="w-full flex items-center justify-center gap-2 py-3 bg-orange-50 text-orange-700 font-bold rounded-xl hover:bg-orange-100 transition-colors"
+              >
+                <Home size={18} />
+                แอดมิท (Admit)
+              </button>
+            </div>
+            
+            <button 
+              type="button"
+              onClick={() => router.push("/dashboard")}
+              className="w-full mt-4 py-3 text-gray-500 font-bold hover:bg-gray-50 rounded-xl transition-colors"
+            >
+              กลับหน้าแรก
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

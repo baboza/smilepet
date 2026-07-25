@@ -1,7 +1,7 @@
 "use client";
 
 import React, { use, useState } from "react";
-import { ArrowLeft, Edit, Phone, MapPin, CalendarPlus, Scissors, Home, Stethoscope, FileText, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, Edit, Phone, MapPin, CalendarPlus, Scissors, Home, Stethoscope, FileText, ChevronDown, ChevronUp, Syringe } from "lucide-react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { db } from "@/lib/firebase/config";
@@ -57,12 +57,13 @@ const fetchOwnerProfile = async (id: string) => {
     
     let history: any[] = [];
 
-    const [opdSnap, aptSnap, groomSnap, hotelSnap, receiptSnap] = await Promise.all([
+    const [opdSnap, aptSnap, groomSnap, hotelSnap, receiptSnap, vacSnap] = await Promise.all([
       getDocs(query(collection(db, "opd_records"), where("petId", "==", petId))),
       getDocs(query(collection(db, "appointments"), where("petId", "==", petId))),
       getDocs(query(collection(db, "grooming_queues"), where("petId", "==", petId))),
       getDocs(query(collection(db, "hotel_bookings"), where("petId", "==", petId))),
-      getDocs(query(collection(db, "linked_receipts"), where("petId", "==", petId)))
+      getDocs(query(collection(db, "linked_receipts"), where("petId", "==", petId))),
+      getDocs(query(collection(db, "vaccinations"), where("petId", "==", petId)))
     ]);
 
     opdSnap.docs.forEach(d => {
@@ -128,6 +129,17 @@ const fetchOwnerProfile = async (id: string) => {
         date: dateStr,
         title: `บิล #${receipt.receipt_number}`,
         details: receipt
+      });
+    });
+
+    vacSnap.docs.forEach(d => {
+      const vac = d.data();
+      history.push({
+        id: d.id,
+        category: "วัคซีน",
+        date: vac.date,
+        title: vac.vaccineName,
+        details: vac
       });
     });
 
@@ -292,10 +304,14 @@ export default function OwnerProfilePage({ params }: { params: Promise<{ id: str
                   </div>
 
                   {/* Quick Actions for this pet */}
-                  <div className="grid grid-cols-4 gap-2 mt-4 pt-3 border-t border-gray-100">
+                  <div className="grid grid-cols-5 gap-2 mt-4 pt-3 border-t border-gray-100">
                     <Link href={`/opd/new?petId=${pet.id}`} className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-blue-50 transition-colors text-blue-600 group">
                       <Stethoscope size={18} className="group-active:scale-95 transition-transform" />
                       <span className="text-[10px] font-bold">OPD</span>
+                    </Link>
+                    <Link href={`/vaccine/new?petId=${pet.id}`} className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-yellow-50 transition-colors text-yellow-600 group">
+                      <Syringe size={18} className="group-active:scale-95 transition-transform" />
+                      <span className="text-[10px] font-bold">วัคซีน</span>
                     </Link>
                     <Link href={`/appointments/new?petId=${pet.id}`} className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-mint-50 transition-colors text-mint-600 group">
                       <CalendarPlus size={18} className="group-active:scale-95 transition-transform" />
@@ -331,6 +347,7 @@ export default function OwnerProfilePage({ params }: { params: Promise<{ id: str
                               {/* Timeline Dot based on category */}
                               <div className={`absolute left-0 top-1.5 w-[24px] h-[24px] rounded-full flex items-center justify-center border-4 border-white ${
                                 record.category === "OPD" ? "bg-blue-500" :
+                                record.category === "วัคซีน" ? "bg-yellow-500" :
                                 record.category === "นัดหมาย" ? "bg-mint-500" :
                                 record.category === "ชำระเงิน" ? "bg-green-500" :
                                 record.category === "อาบน้ำตัดขน" ? "bg-purple-500" :
@@ -340,6 +357,7 @@ export default function OwnerProfilePage({ params }: { params: Promise<{ id: str
                               
                               <div className={`p-3 rounded-xl border border-gray-100 text-sm shadow-sm ${
                                 record.category === "OPD" ? "bg-blue-50/50" :
+                                record.category === "วัคซีน" ? "bg-yellow-50/50" :
                                 record.category === "นัดหมาย" ? "bg-mint-50/50" :
                                 record.category === "ชำระเงิน" ? "bg-green-50/50" :
                                 record.category === "อาบน้ำตัดขน" ? "bg-purple-50/50" :
@@ -356,6 +374,7 @@ export default function OwnerProfilePage({ params }: { params: Promise<{ id: str
                                   </div>
                                   <span className={`px-2 py-0.5 rounded-md text-xs font-bold ${
                                     record.category === "OPD" ? "bg-blue-100 text-blue-700" :
+                                    record.category === "วัคซีน" ? "bg-yellow-100 text-yellow-700" :
                                     record.category === "นัดหมาย" ? "bg-mint-100 text-mint-700" :
                                     record.category === "ชำระเงิน" ? "bg-green-100 text-green-700" :
                                     record.category === "อาบน้ำตัดขน" ? "bg-purple-100 text-purple-700" :
@@ -397,6 +416,15 @@ export default function OwnerProfilePage({ params }: { params: Promise<{ id: str
                                     <>
                                       <p><span className="font-bold text-gray-700">เวลา:</span> {record.details.time || "ไม่ระบุ"}</p>
                                       {record.details.notes && <p><span className="font-bold text-gray-700">รายละเอียด:</span> {record.details.notes}</p>}
+                                    </>
+                                  )}
+
+                                  {record.category === "วัคซีน" && (
+                                    <>
+                                      {record.details.weight && <p><span className="font-bold text-gray-700">น้ำหนัก:</span> {record.details.weight} kg</p>}
+                                      {record.details.lotNumber && <p><span className="font-bold text-gray-700">Lot No:</span> {record.details.lotNumber}</p>}
+                                      {record.details.notes && <p><span className="font-bold text-gray-700">หมายเหตุ:</span> {record.details.notes}</p>}
+                                      {record.details.nextAppointmentDate && <p><span className="font-bold text-gray-700">นัดครั้งต่อไป:</span> {record.details.nextAppointmentDate}</p>}
                                     </>
                                   )}
 

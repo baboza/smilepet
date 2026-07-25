@@ -4,11 +4,60 @@ import { useAuth } from "@/features/auth/contexts/AuthContext";
 import { auth, db } from "@/lib/firebase/config";
 import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
-import { LogOut, Users, Calendar, Home, Scissors, DollarSign, Activity, Bell, Dog, Cat, CheckCircle2, XCircle, HeartPulse, User } from "lucide-react";
+import { LogOut, Users, Calendar, Home, Scissors, DollarSign, Activity, Bell, Dog, Cat, CheckCircle2, XCircle, HeartPulse, User, Search } from "lucide-react";
 import { StatCard } from "@/components/ui/StatCard";
 import { useQuery } from "@tanstack/react-query";
 import { collection, query, where, getDocs, orderBy, limit, getCountFromServer, doc, getDoc } from "firebase/firestore";
-import { startOfDay, format } from "date-fns";
+import { startOfDay, format, isToday } from "date-fns";
+import Link from "next/link";
+import { useSearchStore } from "@/components/ui/GlobalSearchModal";
+
+const fetchAgendaData = async () => {
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const [aptSnap, admitSnap, petsSnap, ownersSnap] = await Promise.all([
+    getDocs(query(collection(db, "appointments"), where("date", "==", todayStr))),
+    getDocs(query(collection(db, "admit_records"), where("status", "==", "กำลังรักษา"))),
+    getDocs(collection(db, "pets")),
+    getDocs(collection(db, "owners"))
+  ]);
+
+  const petsList = petsSnap.docs.map(doc => ({ id: doc.id, ...(doc.data() as any) } as any));
+  const ownersList = ownersSnap.docs.map(doc => ({ id: doc.id, ...(doc.data() as any) } as any));
+
+  const appointments = aptSnap.docs.map(doc => {
+    const data = doc.data() as any;
+    const pet = petsList.find((p: any) => p.id === data.petId);
+    const owner = ownersList.find((o: any) => o.id === pet?.ownerId);
+    return {
+      id: doc.id,
+      petName: pet?.name || "ไม่ทราบชื่อ",
+      petSpecies: pet?.species || "สุนัข",
+      petImageUrl: pet?.imageUrl || pet?.photoUrl || null,
+      ownerName: owner?.name || "ไม่ทราบ",
+      ownerId: owner?.id || null,
+      type: data.type || "นัดหมาย",
+      time: data.time || "-"
+    };
+  }).sort((a, b) => a.time.localeCompare(b.time));
+
+  const admits = admitSnap.docs.map(doc => {
+    const data = doc.data() as any;
+    const pet = petsList.find((p: any) => p.id === data.petId);
+    const owner = ownersList.find((o: any) => o.id === pet?.ownerId);
+    return {
+      id: doc.id,
+      petName: pet?.name || "ไม่ทราบชื่อ",
+      petSpecies: pet?.species || "สุนัข",
+      petImageUrl: pet?.imageUrl || pet?.photoUrl || null,
+      ownerName: owner?.name || "ไม่ทราบ",
+      ownerId: owner?.id || null,
+      reason: data.reason || "แอดมิท",
+      room: data.room || "-"
+    };
+  });
+
+  return { appointments, admits };
+};
 
 const fetchDashboardStats = async () => {
   const todayStart = startOfDay(new Date()).toISOString();
@@ -115,10 +164,17 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const router = useRouter();
 
-  const { data: stats, isLoading } = useQuery({
+  const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ["dashboardStats"],
     queryFn: fetchDashboardStats,
   });
+
+  const { data: agenda, isLoading: agendaLoading } = useQuery({
+    queryKey: ["dashboardAgenda"],
+    queryFn: fetchAgendaData,
+  });
+
+  const { openSearch } = useSearchStore();
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -134,6 +190,9 @@ export default function DashboardPage() {
           <p className="text-xs text-gray-500 font-bold">{stats?.clinicAddress || "คลินิกหลัก"}</p>
         </div>
         <div className="flex items-center gap-3">
+          <button onClick={openSearch} className="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors md:hidden">
+            <Search size={20} />
+          </button>
           <button className="relative p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors">
             <Bell size={20} />
             <span className="absolute top-1.5 right-2 w-2 h-2 bg-red-500 rounded-full"></span>
@@ -159,8 +218,96 @@ export default function DashboardPage() {
           <p className="text-sm text-gray-500 font-bold">ภาพรวมคลินิกวันนี้</p>
         </div>
 
+        {/* Today's Agenda Section */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <Calendar size={20} className="text-blue-500" /> นัดหมายวันนี้ 
+              {!agendaLoading && agenda?.appointments && agenda.appointments.length > 0 && (
+                <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs font-bold">{agenda.appointments.length}</span>
+              )}
+            </h2>
+            <Link href="/appointments" className="text-sm font-bold text-blue-600 hover:underline">ดูทั้งหมด</Link>
+          </div>
+          
+          <div className="flex overflow-x-auto pb-2 gap-3 hide-scrollbar">
+            {agendaLoading ? (
+               [...Array(2)].map((_, i) => (
+                 <div key={i} className="min-w-[240px] bg-white p-4 rounded-2xl h-24 animate-pulse border border-gray-100"></div>
+               ))
+            ) : agenda?.appointments && agenda.appointments.length > 0 ? (
+              agenda.appointments.map((apt: any) => (
+                <Link key={apt.id} href={apt.ownerId ? `/patients/${apt.ownerId}` : "#"} className="min-w-[240px] bg-white p-4 rounded-2xl shadow-sm border border-gray-100 block hover:shadow-md transition-shadow active:scale-[0.98]">
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex items-center gap-3">
+                      {apt.petImageUrl ? (
+                        <img src={apt.petImageUrl} alt={apt.petName} className="w-10 h-10 object-cover rounded-full shadow-sm" />
+                      ) : (
+                        <div className="w-10 h-10 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center text-lg shadow-sm">
+                          {apt.petSpecies === "แมว" ? "🐱" : "🐶"}
+                        </div>
+                      )}
+                      <div>
+                        <h3 className="font-bold text-gray-900 leading-tight">{apt.petName}</h3>
+                        <p className="text-[10px] text-gray-500">เจ้าของ: {apt.ownerName}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50">
+                     <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md">{apt.type}</span>
+                     <span className="text-xs font-bold text-gray-700 flex items-center gap-1">⏰ {apt.time}</span>
+                  </div>
+                </Link>
+              ))
+            ) : (
+              <div className="w-full bg-gray-50 border border-gray-100 border-dashed rounded-2xl p-6 text-center text-gray-500 text-sm font-bold">
+                 ไม่มีนัดหมายในวันนี้
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Admitted Pets Section */}
+        {(!agendaLoading && agenda?.admits && agenda.admits.length > 0) && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <HeartPulse size={20} className="text-rose-500" /> สัตว์แอดมิท 
+                <span className="bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full text-xs font-bold">{agenda.admits.length}</span>
+              </h2>
+              <Link href="/admit" className="text-sm font-bold text-rose-600 hover:underline">ไปห้องแอดมิท</Link>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {agenda.admits.map((admit: any) => (
+                <Link key={admit.id} href={admit.ownerId ? `/patients/${admit.ownerId}` : "#"} className="bg-white p-4 rounded-2xl shadow-sm border border-rose-100 block hover:shadow-md transition-shadow">
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-3">
+                      {admit.petImageUrl ? (
+                        <img src={admit.petImageUrl} alt={admit.petName} className="w-12 h-12 object-cover rounded-full shadow-sm border-2 border-white" />
+                      ) : (
+                        <div className="w-12 h-12 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center text-xl shadow-sm border-2 border-white">
+                          {admit.petSpecies === "แมว" ? "🐱" : "🐶"}
+                        </div>
+                      )}
+                      <div>
+                        <h3 className="font-bold text-gray-900">{admit.petName}</h3>
+                        <p className="text-xs text-gray-500 mb-1">เจ้าของ: {admit.ownerName}</p>
+                        <div className="flex gap-2">
+                          <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md">{admit.reason}</span>
+                          <span className="text-[10px] font-bold text-gray-600 bg-gray-100 px-2 py-0.5 rounded-md">ห้อง: {admit.room}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Stats Grid */}
-        {isLoading ? (
+        {statsLoading ? (
           <div className="grid grid-cols-2 gap-4">
             {[...Array(6)].map((_, i) => (
               <div key={i} className="h-28 bg-gray-200 animate-pulse rounded-2xl border border-gray-100"></div>
@@ -217,7 +364,7 @@ export default function DashboardPage() {
         <div className="mt-8">
           <h2 className="text-lg font-bold text-gray-900 mb-4">สถิติสัตว์เลี้ยงทั้งหมด ({stats?.petStats?.total || 0} ตัว)</h2>
           
-          {isLoading ? (
+          {statsLoading ? (
             <div className="h-32 bg-gray-200 animate-pulse rounded-2xl border border-gray-100"></div>
           ) : (
             <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
