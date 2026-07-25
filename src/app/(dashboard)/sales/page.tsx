@@ -130,7 +130,9 @@ export default function SalesPage() {
         petName: pet.name,
         ownerName: pet.ownerName || "",
         linkedAt: new Date().toISOString(),
+        receipt_date: receipt.created_at || new Date().toISOString(),
         total_money: receipt.total_money,
+        line_items: receipt.line_items || []
       });
       refetchLinked();
     } catch (e) {

@@ -67,10 +67,15 @@ const fetchOwnerProfile = async (id: string) => {
 
     opdSnap.docs.forEach(d => {
       const opd = d.data();
+      let opdDate = opd.date;
+      if (opd.createdAt) {
+        const d = new Date(opd.createdAt);
+        opdDate = `${d.toLocaleDateString('th-TH')} ${d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}`;
+      }
       history.push({
         id: d.id,
         category: "OPD",
-        date: opd.date,
+        date: opdDate,
         title: opd.treatmentType || "ประวัติการรักษา",
         details: opd
       });
@@ -111,7 +116,12 @@ const fetchOwnerProfile = async (id: string) => {
 
     receiptSnap.docs.forEach(d => {
       const receipt = d.data();
-      const dateStr = receipt.linkedAt ? new Date(receipt.linkedAt).toISOString().split('T')[0] : "";
+      const rDate = receipt.receipt_date || receipt.linkedAt;
+      let dateStr = "";
+      if (rDate) {
+        const dateObj = new Date(rDate);
+        dateStr = `${dateObj.toLocaleDateString('th-TH')} ${dateObj.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}`;
+      }
       history.push({
         id: d.id,
         category: "ชำระเงิน",
@@ -167,6 +177,7 @@ export default function OwnerProfilePage({ params }: { params: Promise<{ id: str
   });
 
   const [expandedPetId, setExpandedPetId] = useState<string | null>(null);
+  const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
 
   const toggleHistory = (petId: string) => {
     setExpandedPetId(expandedPetId === petId ? null : petId);
@@ -336,7 +347,11 @@ export default function OwnerProfilePage({ params }: { params: Promise<{ id: str
                               }`}>
                                 <div className="flex justify-between items-start mb-2 pb-2 border-b border-gray-200">
                                   <div>
-                                    <span className="font-bold text-gray-900">{record.title}</span>
+                                    <span className="font-bold text-gray-900">
+                                      {record.category === "ชำระเงิน" ? (
+                                        <button onClick={() => setSelectedReceipt(record.details)} className="text-blue-600 hover:underline">{record.title}</button>
+                                      ) : record.title}
+                                    </span>
                                     <p className="text-xs text-gray-500 mt-0.5">{record.date}</p>
                                   </div>
                                   <span className={`px-2 py-0.5 rounded-md text-xs font-bold ${
@@ -428,6 +443,36 @@ export default function OwnerProfilePage({ params }: { params: Promise<{ id: str
         </div>
       )}
 
+      {/* Receipt Modal */}
+      {selectedReceipt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setSelectedReceipt(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-md p-5 shadow-xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-gray-900 mb-4">รายการในบิล #{selectedReceipt.receipt_number}</h3>
+            {selectedReceipt.line_items && selectedReceipt.line_items.length > 0 ? (
+              <div className="space-y-2 mb-4 max-h-60 overflow-y-auto pr-2">
+                {selectedReceipt.line_items.map((item: any, idx: number) => (
+                  <div key={idx} className="flex justify-between text-sm py-1 border-b border-gray-50 last:border-0">
+                    <span className="text-gray-700">{item.item_name} <span className="text-gray-400 text-xs ml-1">x{item.quantity}</span></span>
+                    <span className="font-bold text-gray-900">฿ {new Intl.NumberFormat('th-TH').format(item.total_money)}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500 mb-4 text-center py-4 bg-gray-50 rounded-xl">ไม่พบรายการสินค้า <br/><span className="text-xs">(อาจเป็นบิลที่ผูกไว้ก่อนอัปเดตระบบ)</span></p>
+            )}
+            <div className="border-t border-gray-100 pt-3 flex justify-between font-bold text-lg mb-4">
+              <span>ยอดรวม</span>
+              <span className="text-mint-600">฿ {new Intl.NumberFormat('th-TH').format(selectedReceipt.total_money || 0)}</span>
+            </div>
+            <button 
+              onClick={() => setSelectedReceipt(null)}
+              className="w-full bg-gray-100 text-gray-800 font-bold py-3 rounded-xl hover:bg-gray-200 transition-colors"
+            >
+              ปิด
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
