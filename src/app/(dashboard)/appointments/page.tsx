@@ -9,7 +9,7 @@ import { collection, getDocs, query, orderBy, doc, updateDoc, where } from "fire
 import { SearchBar } from "@/components/ui/SearchBar";
 
 const fetchAppointments = async () => {
-  const appointmentsSnap = await getDocs(query(collection(db, "appointments"), orderBy("date", "asc")));
+  const appointmentsSnap = await getDocs(query(collection(db, "appointments"), orderBy("date", "desc")));
   const petsSnap = await getDocs(collection(db, "pets"));
   const ownersSnap = await getDocs(collection(db, "owners"));
 

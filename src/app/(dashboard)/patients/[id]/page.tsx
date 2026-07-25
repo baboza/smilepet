@@ -155,7 +155,11 @@ const fetchOwnerProfile = async (id: string) => {
       });
     });
 
-    history.sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
+    history.sort((a, b) => {
+      const timeA = a.details?.createdAt ? new Date(a.details.createdAt).getTime() : new Date(a.date || 0).getTime();
+      const timeB = b.details?.createdAt ? new Date(b.details.createdAt).getTime() : new Date(b.date || 0).getTime();
+      return (timeB || 0) - (timeA || 0);
+    });
 
     let latestWeight = data.weight || "-";
     let latestWeightDate = "";
