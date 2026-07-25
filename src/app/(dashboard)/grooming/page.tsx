@@ -45,6 +45,8 @@ const fetchGroomingQueue = async () => {
       id: doc.id,
       petName: pet ? `${pet.name} (${pet.species})` : "ไม่ทราบชื่อสัตว์",
       owner: owner?.name || "ไม่ทราบชื่อเจ้าของ",
+      petImageUrl: pet?.imageUrl || pet?.photoUrl || null,
+      petSpecies: pet?.species || "สุนัข",
       status: data.status || "รอดำเนินการ",
       time: data.bookingDate || "-",
       services: services
@@ -139,9 +141,18 @@ export default function GroomingPage() {
               className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col gap-3 relative"
             >
               <div className="flex justify-between items-start">
-                <div className="pr-10">
-                  <h3 className="text-base font-bold text-gray-900">{q.petName}</h3>
-                  <p className="text-xs text-gray-500 mt-0.5 font-bold">เจ้าของ: {q.owner}</p>
+                <div className="flex items-center gap-3 pr-10">
+                  {q.petImageUrl ? (
+                    <img src={q.petImageUrl} alt={q.petName} className="w-10 h-10 object-cover rounded-full shadow-sm shrink-0" />
+                  ) : (
+                    <div className="w-10 h-10 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-lg shadow-sm shrink-0">
+                      {q.petSpecies === "แมว" ? "🐱" : "🐶"}
+                    </div>
+                  )}
+                  <div>
+                    <h3 className="text-base font-bold text-gray-900">{q.petName}</h3>
+                    <p className="text-xs text-gray-500 mt-0.5 font-bold">เจ้าของ: {q.owner}</p>
+                  </div>
                 </div>
                 <div 
                   className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border cursor-pointer hover:opacity-80 transition-opacity ${getStatusColor(q.status)}`}
