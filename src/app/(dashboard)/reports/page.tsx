@@ -6,9 +6,18 @@ import { useQuery } from "@tanstack/react-query";
 import { db } from "@/lib/firebase/config";
 import { collection, getDocs } from "firebase/firestore";
 import { startOfDay, startOfWeek, startOfMonth, isAfter } from "date-fns";
+import { BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
-
-const fetchLoyverseRevenue = async (period: string) => {
+const fetchLoyverseEmployees = async () => {
+  try {
+    const res = await fetch("/api/loyverse/employees");
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.employees || [];
+  } catch {
+    return [];
+  }
+};const fetchLoyverseRevenue = async (period: string) => {
   let min = "";
   let max = "";
   
@@ -59,7 +68,10 @@ export default function ReportsPage() {
     queryFn: fetchReportData
   });
 
-
+  const { data: employeesData } = useQuery({
+    queryKey: ["loyverseEmployees"],
+    queryFn: fetchLoyverseEmployees
+  });
   const { data: revenueData, isLoading: revLoading } = useQuery({
     queryKey: ["loyverseRevenue", reportPeriod],
     queryFn: () => fetchLoyverseRevenue(reportPeriod)
@@ -103,19 +115,68 @@ export default function ReportsPage() {
   const catsCount = allData?.pets.filter(d => isWithinPeriod(d.createdAt) && d.species === "แมว").length || 0;
   const otherCount = newPetsCount - dogsCount - catsCount;
 
-  // 4. Top Selling Items
-  const itemCounts: Record<string, number> = {};
+  // 4. Advanced Analytics (Loyverse)
+  let totalDiscounts = 0;
+  let totalTickets = filteredReceipts.length;
+  
+  const paymentMethods: Record<string, number> = {};
+  const staffSales: Record<string, number> = {};
+  const hourlyTrends: Record<string, number> = {};
+  const itemCounts: Record<string, { qty: number, revenue: number }> = {};
+
   filteredReceipts.forEach((r: any) => {
+    totalDiscounts += Math.abs(r.total_discount || 0); // Convert to absolute just in case
+    
+    if (r.payments && Array.isArray(r.payments)) {
+      r.payments.forEach((p: any) => {
+        const name = p.name || "อื่นๆ";
+        paymentMethods[name] = (paymentMethods[name] || 0) + (p.money_amount || 0);
+      });
+    }
+
+    const empId = r.employee_id;
+    if (empId) {
+      staffSales[empId] = (staffSales[empId] || 0) + (r.total_money || 0);
+    }
+
+    if (r.created_at) {
+      const date = new Date(r.created_at);
+      const hour = date.getHours().toString().padStart(2, '0') + ":00";
+      hourlyTrends[hour] = (hourlyTrends[hour] || 0) + 1;
+    }
+
     if (r.line_items) {
       r.line_items.forEach((item: any) => {
-        itemCounts[item.item_name] = (itemCounts[item.item_name] || 0) + (item.quantity || 1);
+        const name = item.item_name || "ไม่ระบุ";
+        if (!itemCounts[name]) itemCounts[name] = { qty: 0, revenue: 0 };
+        itemCounts[name].qty += (item.quantity || 1);
+        itemCounts[name].revenue += (item.total_money || 0);
       });
     }
   });
-  const topSelling = Object.entries(itemCounts)
-    .sort((a, b) => b[1] - a[1])
+
+  const avgTicket = totalTickets > 0 ? totalRevenue / totalTickets : 0;
+  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6'];
+
+  const paymentData = Object.entries(paymentMethods)
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value);
+  
+  const staffData = Object.entries(staffSales)
+    .map(([id, sales]) => {
+      const emp = employeesData?.find((e: any) => e.id === id);
+      return { name: emp ? emp.name : "พนักงาน", sales };
+    })
+    .sort((a, b) => b.sales - a.sales);
+
+  const hourlyData = Object.entries(hourlyTrends)
+    .map(([time, cases]) => ({ time, cases }))
+    .sort((a, b) => a.time.localeCompare(b.time));
+
+  const topItemsData = Object.entries(itemCounts)
+    .sort((a, b) => b[1].revenue - a[1].revenue)
     .slice(0, 5)
-    .map(([name, qty]) => ({ name, qty }));
+    .map(([name, data]) => ({ name, revenue: data.revenue, qty: data.qty }));
 
 
   return (
@@ -167,22 +228,40 @@ export default function ReportsPage() {
 
         {/* Sub KPIs */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-            <div className="flex items-center gap-2 text-gray-500 mb-1">
-              <Users size={16} className="text-blue-500" />
-              <span className="text-xs font-bold">ผู้ป่วยใหม่</span>
+          <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
+            <div>
+              <div className="text-xs font-bold text-gray-500 mb-1">ยอดซื้อเฉลี่ย/บิล</div>
+              <div className="text-xl font-bold text-gray-900">฿ {avgTicket.toFixed(0)}</div>
             </div>
-            <div className="text-2xl font-bold text-gray-900">
-              {isLoading ? "..." : newPetsCount} <span className="text-sm font-normal text-gray-500">ตัว</span>
+            <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-500">
+              <CreditCard size={18} />
             </div>
           </div>
-          <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-            <div className="flex items-center gap-2 text-gray-500 mb-1">
-              <Calendar size={16} className="text-purple-500" />
-              <span className="text-xs font-bold">จำนวนเคสรวม</span>
+          <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
+            <div>
+              <div className="text-xs font-bold text-gray-500 mb-1">จำนวนบิลทั้งหมด</div>
+              <div className="text-xl font-bold text-gray-900">{totalTickets} <span className="text-sm font-normal text-gray-500">บิล</span></div>
             </div>
-            <div className="text-2xl font-bold text-gray-900">
-              {isLoading ? "..." : totalCases} <span className="text-sm font-normal text-gray-500">เคส</span>
+            <div className="w-10 h-10 rounded-full bg-purple-50 flex items-center justify-center text-purple-500">
+              <FileText size={18} />
+            </div>
+          </div>
+          <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
+            <div>
+              <div className="text-xs font-bold text-gray-500 mb-1">จำนวนเคสบริการรวม</div>
+              <div className="text-xl font-bold text-gray-900">{totalCases} <span className="text-sm font-normal text-gray-500">เคส</span></div>
+            </div>
+            <div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center text-orange-500">
+              <Activity size={18} />
+            </div>
+          </div>
+          <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
+            <div>
+              <div className="text-xs font-bold text-gray-500 mb-1">ผู้ป่วยใหม่</div>
+              <div className="text-xl font-bold text-gray-900">{newPetsCount} <span className="text-sm font-normal text-gray-500">ตัว</span></div>
+            </div>
+            <div className="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center text-green-500">
+              <Users size={18} />
             </div>
           </div>
         </div>
@@ -237,19 +316,102 @@ export default function ReportsPage() {
           </div>
         )}
 
-        {/* Top Selling Items */}
-        {topSelling.length > 0 && (
+        {/* Advanced Charts Section */}
+        
+        {/* Payment Methods */}
+        {paymentData.length > 0 && (
           <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
             <h2 className="font-bold text-gray-900 flex items-center gap-2 mb-4">
-              <TrendingUp size={18} className="text-green-500" /> สินค้า/ยา ยอดฮิต
+              <CreditCard size={18} className="text-blue-500" /> สัดส่วนช่องทางชำระเงิน
             </h2>
-            <div className="space-y-3">
-              {topSelling.map((item, idx) => (
-                <div key={idx} className="flex justify-between items-center text-sm border-b border-gray-50 pb-2 last:border-0 last:pb-0">
-                  <span className="text-gray-700 truncate pr-2 flex-1">{item.name}</span>
-                  <span className="font-bold text-gray-900 shrink-0">{item.qty} ชิ้น</span>
-                </div>
-              ))}
+            <div className="h-60 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={paymentData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {paymentData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value: any) => `฿ ${Number(value).toLocaleString()}`} />
+                  <Legend verticalAlign="bottom" height={36} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+
+        {/* Hourly Trends */}
+        {hourlyData.length > 0 && (
+          <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+            <h2 className="font-bold text-gray-900 flex items-center gap-2 mb-4">
+              <Activity size={18} className="text-purple-500" /> ช่วงเวลาที่มีลูกค้าเยอะที่สุด (บิล/ชม.)
+            </h2>
+            <div className="h-60 w-full -ml-4">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={hourlyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                  <XAxis dataKey="time" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6b7280' }} dy={10} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6b7280' }} />
+                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                  <Line type="monotone" dataKey="cases" stroke="#a855f7" strokeWidth={3} dot={{ r: 4, fill: "#a855f7", strokeWidth: 2, stroke: "#fff" }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+
+        {/* Staff KPI */}
+        {staffData.length > 0 && (
+          <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+            <h2 className="font-bold text-gray-900 flex items-center gap-2 mb-4">
+              <Users size={18} className="text-orange-500" /> ยอดขายตามพนักงาน (Staff KPI)
+            </h2>
+            <div className="h-64 w-full -ml-4">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={staffData} layout="vertical" margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f3f4f6" />
+                  <XAxis type="number" hide />
+                  <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#374151' }} width={80} />
+                  <Tooltip formatter={(value: any) => `฿ ${Number(value).toLocaleString()}`} cursor={{ fill: '#f3f4f6' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                  <Bar dataKey="sales" fill="#f59e0b" radius={[0, 4, 4, 0]}>
+                    {staffData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+
+        {/* Top Selling Items */}
+        {topItemsData.length > 0 && (
+          <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+            <h2 className="font-bold text-gray-900 flex items-center gap-2 mb-4">
+              <TrendingUp size={18} className="text-green-500" /> สินค้า/ยา ยอดฮิต 5 อันดับแรก
+            </h2>
+            <div className="h-64 w-full -ml-4">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={topItemsData} layout="vertical" margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f3f4f6" />
+                  <XAxis type="number" hide />
+                  <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#374151' }} width={100} />
+                  <Tooltip 
+                    formatter={(value: any, name: any) => name === 'revenue' ? [`฿ ${Number(value).toLocaleString()}`, 'ยอดขาย'] : [`${value} ชิ้น`, 'จำนวน']}
+                    cursor={{ fill: '#f3f4f6' }} 
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} 
+                  />
+                  <Bar dataKey="revenue" fill="#10b981" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
           </div>
         )}
