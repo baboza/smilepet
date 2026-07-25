@@ -233,7 +233,12 @@ export default function OwnerProfilePage({ params }: { params: Promise<{ id: str
                     {/* Pet Info */}
                     <div className="flex-1 min-w-0 pt-2 text-center sm:text-left">
                       <div className="flex flex-col sm:flex-row justify-between items-center sm:items-start gap-2 mb-2">
-                        <h4 className="font-bold text-gray-900 text-2xl truncate">{pet.name}</h4>
+                        <div className="flex items-center gap-3">
+                          <h4 className="font-bold text-gray-900 text-2xl truncate">{pet.name}</h4>
+                          <Link href={`/patients/pet/${pet.id}/edit`} className="p-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-full transition-colors">
+                            <Edit size={14} />
+                          </Link>
+                        </div>
                         <span className="text-xs font-bold bg-gray-100 text-gray-600 px-3 py-1 rounded-lg uppercase tracking-wide">
                           {pet.species}
                         </span>
@@ -322,19 +327,22 @@ export default function OwnerProfilePage({ params }: { params: Promise<{ id: str
                                 <div className="space-y-1 text-xs">
                                   {record.category === "OPD" && (
                                     <>
-                                      {record.details.weight && <p><span className="font-bold text-gray-700">น้ำหนัก:</span> {record.details.weight} kg</p>}
-                                      {record.details.cc && <p><span className="font-bold text-gray-700">อาการ:</span> {record.details.cc}</p>}
-                                      {record.details.dx && <p><span className="font-bold text-gray-700">วินิจฉัย:</span> {record.details.dx}</p>}
-                                      {record.details.tx && <p><span className="font-bold text-gray-700">การรักษา:</span> {record.details.tx}</p>}
-                                      {record.details.opdDetail && <p><span className="font-bold text-gray-700">รายละเอียด:</span> {record.details.opdDetail}</p>}
+                                      {record.details.physicalExam?.weight && <p><span className="font-bold text-gray-700">น้ำหนัก:</span> {record.details.physicalExam.weight} kg</p>}
+                                      {(record.details.chiefComplaint?.items?.length > 0 || record.details.chiefComplaint?.others) && (
+                                        <p><span className="font-bold text-gray-700">อาการ:</span> {[...(record.details.chiefComplaint?.items || []), record.details.chiefComplaint?.others].filter(Boolean).join(", ")}</p>
+                                      )}
+                                      {record.details.diagnosis?.length > 0 && <p><span className="font-bold text-gray-700">วินิจฉัย:</span> {record.details.diagnosis.join(", ")}</p>}
+                                      {record.details.treatment && Object.keys(record.details.treatment).some(k => record.details.treatment[k]) && (
+                                        <p><span className="font-bold text-gray-700">การรักษา:</span> {Object.keys(record.details.treatment).filter(k => record.details.treatment[k]).join(", ")}</p>
+                                      )}
+                                      {record.details.notes && <p><span className="font-bold text-gray-700">รายละเอียด:</span> {record.details.notes}</p>}
                                     </>
                                   )}
                                   
                                   {record.category === "นัดหมาย" && (
                                     <>
                                       <p><span className="font-bold text-gray-700">เวลา:</span> {record.details.time || "ไม่ระบุ"}</p>
-                                      <p><span className="font-bold text-gray-700">รายละเอียด:</span> {record.details.reason || "-"}</p>
-                                      <p><span className="font-bold text-gray-700">สถานะ:</span> {record.details.status === "pending" ? "รอยืนยัน" : record.details.status}</p>
+                                      {record.details.notes && <p><span className="font-bold text-gray-700">รายละเอียด:</span> {record.details.notes}</p>}
                                     </>
                                   )}
 
