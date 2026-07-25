@@ -9,6 +9,39 @@ import { useQuery } from "@tanstack/react-query";
 import { doc, getDoc } from "firebase/firestore";
 import SignatureCanvas from 'react-signature-canvas';
 
+const calculateAge = (birthDateStr: string) => {
+  if (!birthDateStr || birthDateStr === "-") return "-";
+  
+  let birthDate;
+  if (birthDateStr.includes("/")) {
+    const [d, m, y] = birthDateStr.split("/");
+    if (d && m && y) {
+      birthDate = new Date(`${y}-${m}-${d}`);
+      if (isNaN(birthDate.getTime())) birthDate = new Date(birthDateStr);
+    } else {
+      birthDate = new Date(birthDateStr);
+    }
+  } else {
+    birthDate = new Date(birthDateStr);
+  }
+
+  if (isNaN(birthDate.getTime())) return birthDateStr;
+
+  const today = new Date();
+  let years = today.getFullYear() - birthDate.getFullYear();
+  let months = today.getMonth() - birthDate.getMonth();
+  
+  if (months < 0 || (months === 0 && today.getDate() < birthDate.getDate())) {
+    years--;
+    months += 12;
+  }
+  
+  if (years === 0 && months === 0) return "ไม่ถึง 1 เดือน";
+  if (years === 0) return `${months} เดือน`;
+  if (months === 0) return `${years} ปี`;
+  return `${years} ปี ${months} เดือน`;
+};
+
 export default function SmartFormsPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -213,7 +246,7 @@ export default function SmartFormsPage({ params }: { params: Promise<{ id: strin
               
               <div className="text-center mb-8">
                 <h1 className="text-2xl font-black text-gray-900 mb-1">คลินิกรักษาสัตว์ SmilePet</h1>
-                <p className="text-gray-600 text-sm">{owner.address || "123 ถนนเพชรเกษม แขวงหนองค้างพลู เขตหนองแขม กรุงเทพมหานคร 10160"}</p>
+                <p className="text-gray-600 text-sm">1/14 ต.ตลาด อ.เมือง จ.มหาสารคาม 44000</p>
                 <p className="text-gray-600 text-sm">โทร: 080-123-4567</p>
               </div>
 
@@ -237,7 +270,7 @@ export default function SmartFormsPage({ params }: { params: Promise<{ id: strin
                   ชนิด <span className="font-bold border-b border-dotted border-gray-400 px-4">{pet.species}</span> 
                   พันธุ์ <span className="font-bold border-b border-dotted border-gray-400 px-4">{pet.breed}</span> 
                   เพศ <span className="font-bold border-b border-dotted border-gray-400 px-4">{pet.sex}</span>
-                  อายุ <span className="font-bold border-b border-dotted border-gray-400 px-4">{pet.birthDate}</span>
+                  อายุ <span className="font-bold border-b border-dotted border-gray-400 px-4">{calculateAge(pet.birthDate)}</span>
                 </p>
 
                 {formType === "surgery" && (
