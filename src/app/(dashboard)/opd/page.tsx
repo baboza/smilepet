@@ -8,10 +8,27 @@ import { ArrowLeft, Users, Activity, Plus } from "lucide-react";
 import { format } from "date-fns";
 
 const fetchOpdRecords = async () => {
-  const opdSnap = await getDocs(
-    query(collection(db, "opd_records"), orderBy("createdAt", "desc"), limit(50))
-  );
-  return opdSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+  const [opdSnap, petsSnap, ownersSnap] = await Promise.all([
+    getDocs(query(collection(db, "opd_records"), orderBy("createdAt", "desc"), limit(50))),
+    getDocs(collection(db, "pets")),
+    getDocs(collection(db, "owners"))
+  ]);
+
+  const petsList = petsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
+  const ownersList = ownersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
+
+  return opdSnap.docs.map(doc => {
+    const data = doc.data() as any;
+    const pet = petsList.find(p => p.id === data.petId);
+    const owner = ownersList.find(o => o.id === pet?.ownerId);
+    
+    return {
+      id: doc.id,
+      ...data,
+      petName: pet?.name || "ไม่ระบุชื่อ",
+      ownerName: owner?.name || "ไม่ระบุเจ้าของ"
+    };
+  });
 };
 
 export default function OPDPage() {
