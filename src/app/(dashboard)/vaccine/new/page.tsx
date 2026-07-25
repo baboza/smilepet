@@ -14,7 +14,7 @@ import { useAuth } from "@/features/auth/contexts/AuthContext";
 
 const vaccineSchema = z.object({
   petId: z.string().min(1, "กรุณาเลือกสัตว์เลี้ยง"),
-  vaccineName: z.string().min(1, "กรุณาระบุชื่อวัคซีน"),
+  vaccineNames: z.array(z.string()).min(1, "กรุณาเลือกวัคซีนอย่างน้อย 1 รายการ"),
   weight: z.string().optional(),
   lotNumber: z.string().optional(),
   notes: z.string().optional(),
@@ -22,6 +22,23 @@ const vaccineSchema = z.object({
 });
 
 type VaccineFormValues = z.infer<typeof vaccineSchema>;
+
+const DOG_VACCINES = [
+  "วัคซีนรวม 5 โรค (DHLPP)",
+  "วัคซีนรวม 6 โรค (DHLPP + Corona)",
+  "วัคซีนพิษสุนัขบ้า (Rabies)",
+  "วัคซีนพยาธิหนอนหัวใจ (Heartworm)",
+  "วัคซีนลำไส้อักเสบ (Parvovirus)",
+  "วัคซีนไข้หัดสุนัข (Canine Distemper)"
+];
+
+const CAT_VACCINES = [
+  "วัคซีนรวมไข้หัด-หวัดแมว (FVRCP)",
+  "วัคซีนลิวคีเมีย (FeLV)",
+  "วัคซีนพิษสุนัขบ้า (Rabies)",
+  "วัคซีนเอดส์แมว (FIV)",
+  "วัคซีนเยื่อบุช่องท้องอักเสบ (FIP)"
+];
 
 const fetchPetsAndOwners = async () => {
   const ownersSnap = await getDocs(collection(db, "owners"));
@@ -59,6 +76,7 @@ function VaccineFormContent() {
     resolver: zodResolver(vaccineSchema),
     defaultValues: {
       petId: initialPetId,
+      vaccineNames: [],
     }
   });
 
@@ -100,7 +118,7 @@ function VaccineFormContent() {
 
       const vaccineData = {
         petId: data.petId,
-        vaccineName: data.vaccineName,
+        vaccineName: data.vaccineNames.join(", "),
         weight: data.weight || null,
         lotNumber: data.lotNumber || null,
         notes: data.notes || null,
@@ -116,7 +134,7 @@ function VaccineFormContent() {
       if (data.nextAppointmentDate) {
         await addDoc(collection(db, "appointments"), {
           petId: data.petId,
-          type: `ฉีดวัคซีน ${data.vaccineName} เข็มถัดไป`,
+          type: `ฉีดวัคซีน ${data.vaccineNames.join(", ")} เข็มถัดไป`,
           date: data.nextAppointmentDate,
           time: "09:00", // Default time
           status: "pending",
@@ -236,14 +254,47 @@ function VaccineFormContent() {
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1.5">ชื่อวัคซีน (Vaccine Name) *</label>
-                <input 
-                  type="text" 
-                  {...register("vaccineName")}
-                  className={`w-full p-3 border ${errors.vaccineName ? 'border-red-500' : 'border-gray-200'} rounded-xl bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-colors`}
-                  placeholder="เช่น วัคซีนรวมแมว, พิษสุนัขบ้า"
-                />
-                {errors.vaccineName && <p className="text-red-500 text-xs mt-1">{errors.vaccineName.message}</p>}
+                <label className="block text-sm font-bold text-gray-700 mb-3">ชื่อวัคซีน (Vaccine Name) *</label>
+                
+                {(!selectedPet || selectedPet.species === "สุนัข" || selectedPet.species === "หมา") && (
+                  <div className="mb-4">
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">วัคซีนสุนัข</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {DOG_VACCINES.map((vac) => (
+                        <label key={vac} className="flex items-center gap-3 p-3 border border-gray-200 rounded-xl bg-gray-50 active:bg-gray-100 transition-colors cursor-pointer hover:border-yellow-300">
+                          <input 
+                            type="checkbox" 
+                            value={vac}
+                            {...register("vaccineNames")} 
+                            className="w-4 h-4 rounded border-gray-300 text-yellow-500 focus:ring-yellow-500"
+                          />
+                          <span className="text-sm font-bold text-gray-800">{vac}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {(!selectedPet || selectedPet.species === "แมว") && (
+                  <div className="mb-2">
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">วัคซีนแมว</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {CAT_VACCINES.map((vac) => (
+                        <label key={vac} className="flex items-center gap-3 p-3 border border-gray-200 rounded-xl bg-gray-50 active:bg-gray-100 transition-colors cursor-pointer hover:border-yellow-300">
+                          <input 
+                            type="checkbox" 
+                            value={vac}
+                            {...register("vaccineNames")} 
+                            className="w-4 h-4 rounded border-gray-300 text-yellow-500 focus:ring-yellow-500"
+                          />
+                          <span className="text-sm font-bold text-gray-800">{vac}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {errors.vaccineNames && <p className="text-red-500 text-xs mt-2">{errors.vaccineNames.message}</p>}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
