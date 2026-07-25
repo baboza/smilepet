@@ -18,6 +18,31 @@ const fetchLoyverseInventory = async () => {
   }
 };
 
+const fetchLoyverseRevenue = async (period: string) => {
+  let min = "";
+  let max = "";
+  
+  if (period !== "ทั้งหมด") {
+    let cutoffDate = new Date(0);
+    const now = new Date();
+    if (period === "วันนี้") cutoffDate = startOfDay(now);
+    if (period === "สัปดาห์นี้") cutoffDate = startOfWeek(now, { weekStartsOn: 1 });
+    if (period === "เดือนนี้") cutoffDate = startOfMonth(now);
+    
+    min = cutoffDate.toISOString().split('.')[0] + 'Z';
+    max = now.toISOString().split('.')[0] + 'Z';
+  }
+  
+  try {
+    const query = min && max ? `?min=${min}&max=${max}` : "";
+    const res = await fetch(`/api/loyverse/receipts${query}`);
+    if (!res.ok) return { totalRevenue: 0, receipts: [] };
+    return await res.json();
+  } catch {
+    return { totalRevenue: 0, receipts: [] };
+  }
+};
+
 const fetchReportData = async () => {
   const [opdSnap, groomSnap, hotelSnap, petsSnap, receiptsSnap] = await Promise.all([
     getDocs(collection(db, "opd_records")),
@@ -49,6 +74,11 @@ export default function ReportsPage() {
     queryFn: fetchLoyverseInventory
   });
 
+  const { data: revenueData, isLoading: revLoading } = useQuery({
+    queryKey: ["loyverseRevenue", reportPeriod],
+    queryFn: () => fetchLoyverseRevenue(reportPeriod)
+  });
+
   // Calculate cut-off date based on period
   let cutoffDate = new Date(0); // All time
   const now = new Date();
@@ -72,8 +102,8 @@ export default function ReportsPage() {
 
   const newPetsCount = allData?.pets.filter(d => isWithinPeriod(d.createdAt)).length || 0;
   
-  const filteredReceipts = allData?.receipts.filter(d => isWithinPeriod(d.receipt_date || d.linkedAt)) || [];
-  const totalRevenue = filteredReceipts.reduce((sum, r) => sum + (Number(r.total_money) || 0), 0);
+  const totalRevenue = revenueData?.totalRevenue || 0;
+  const filteredReceipts = revenueData?.receipts || [];
 
   // 2. Cases Data
   const casesData = [
@@ -89,7 +119,7 @@ export default function ReportsPage() {
 
   // 4. Top Selling Items
   const itemCounts: Record<string, number> = {};
-  filteredReceipts.forEach(r => {
+  filteredReceipts.forEach((r: any) => {
     if (r.line_items) {
       r.line_items.forEach((item: any) => {
         itemCounts[item.item_name] = (itemCounts[item.item_name] || 0) + (item.quantity || 1);
@@ -147,10 +177,10 @@ export default function ReportsPage() {
         <div className="bg-gradient-to-br from-mint-500 to-mint-600 rounded-2xl p-5 text-white shadow-sm">
           <div className="flex items-center gap-2 mb-2 opacity-90">
             <DollarSign size={20} />
-            <h2 className="text-sm font-bold">ยอดขายรวม (ที่ผูกบิลแล้ว)</h2>
+            <h2 className="text-sm font-bold">ยอดขายรวมทั้งหมด (Loyverse)</h2>
           </div>
           <div className="text-3xl font-black mb-1">
-            {isLoading ? "..." : `฿ ${new Intl.NumberFormat('th-TH').format(totalRevenue)}`}
+            {revLoading ? "..." : `฿ ${new Intl.NumberFormat('th-TH').format(totalRevenue)}`}
           </div>
           <p className="text-xs opacity-80">ช่วงเวลา: {reportPeriod}</p>
         </div>
