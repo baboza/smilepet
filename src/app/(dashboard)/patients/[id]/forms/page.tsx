@@ -2,7 +2,7 @@
 
 import { useState, use, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Printer, PenTool, CheckCircle2, FileText, Download } from "lucide-react";
+import { ArrowLeft, Printer, PenTool, CheckCircle2, FileText, Download, Home } from "lucide-react";
 import Link from "next/link";
 import { db } from "@/lib/firebase/config";
 import { useQuery } from "@tanstack/react-query";
