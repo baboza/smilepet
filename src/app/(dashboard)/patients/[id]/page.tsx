@@ -1,7 +1,7 @@
 "use client";
 
 import React, { use, useState } from "react";
-import { ArrowLeft, Edit, Phone, MapPin, CalendarPlus, Scissors, Home, Stethoscope, FileText, ChevronDown, ChevronUp, Syringe, BugOff, Microscope, Printer } from "lucide-react";
+import { ArrowLeft, Edit, Phone, MapPin, CalendarPlus, Scissors, Home, Stethoscope, FileText, ChevronDown, ChevronUp, Syringe, BugOff, Microscope, Printer, Image as ImageIcon } from "lucide-react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { db } from "@/lib/firebase/config";
