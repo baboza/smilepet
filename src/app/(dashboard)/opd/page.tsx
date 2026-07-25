@@ -26,7 +26,10 @@ const fetchOpdRecords = async () => {
       id: doc.id,
       ...data,
       petName: pet?.name || "ไม่ระบุชื่อ",
-      ownerName: owner?.name || "ไม่ระบุเจ้าของ"
+      ownerName: owner?.name || "ไม่ระบุเจ้าของ",
+      ownerId: owner?.id || "",
+      petImageUrl: pet?.imageUrl || pet?.photoUrl || null,
+      petSpecies: pet?.species || "สุนัข"
     };
   });
 };
@@ -83,15 +86,19 @@ export default function OPDPage() {
 
               return (
                 <Link 
-                  href={`/patients/${record.petId}`} 
+                  href={record.ownerId ? `/patients/${record.ownerId}` : "#"} 
                   key={record.id}
                   className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 block hover:shadow-md transition-shadow active:scale-[0.98]"
                 >
                   <div className="flex justify-between items-start mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="bg-blue-100 text-blue-600 p-2 rounded-full">
-                        <Activity size={16} />
-                      </div>
+                    <div className="flex items-center gap-3">
+                      {record.petImageUrl ? (
+                        <img src={record.petImageUrl} alt={record.petName} className="w-10 h-10 object-cover rounded-full shadow-sm" />
+                      ) : (
+                        <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-lg shadow-sm">
+                          {record.petSpecies === "แมว" ? "🐱" : "🐶"}
+                        </div>
+                      )}
                       <div>
                         <h3 className="font-bold text-gray-900">{record.petName || "ไม่ระบุชื่อ"}</h3>
                         <p className="text-xs text-gray-500">เจ้าของ: {record.ownerName || "ไม่ระบุ"}</p>
