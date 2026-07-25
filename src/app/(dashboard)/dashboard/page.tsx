@@ -8,14 +8,14 @@ import { LogOut, Users, Calendar, Home, Scissors, DollarSign, Activity, Bell, Do
 import { StatCard } from "@/components/ui/StatCard";
 import { useQuery } from "@tanstack/react-query";
 import { collection, query, where, getDocs, orderBy, limit, getCountFromServer, doc, getDoc } from "firebase/firestore";
+import { startOfDay, format } from "date-fns";
 
 const fetchDashboardStats = async () => {
-  const now = new Date();
-  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-  const todayStr = now.toISOString().split("T")[0];
+  const todayStart = startOfDay(new Date()).toISOString();
+  const todayStr = format(new Date(), "yyyy-MM-dd");
 
   const opdSnap = await getCountFromServer(
-    query(collection(db, "opd_records"), where("date", "==", todayStr))
+    query(collection(db, "opd_records"), where("createdAt", ">=", todayStart))
   );
 
   const appointmentsTodaySnap = await getCountFromServer(
