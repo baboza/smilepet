@@ -208,6 +208,7 @@ export default function DashboardPage() {
               value={stats?.revenue || "Loyverse"} 
               icon={DollarSign} 
               colorScheme="mint" 
+              onClick={() => router.push("/sales")}
             />
           </div>
         )}

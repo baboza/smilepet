@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, CalendarDays, ClipboardList, Menu, Stethoscope, UserPlus, QrCode, Scissors, Home, PieChart, ShieldAlert } from "lucide-react";
+import { LayoutDashboard, Users, CalendarDays, ClipboardList, Menu, Stethoscope, UserPlus, QrCode, Scissors, Home, PieChart, ShieldAlert, Package } from "lucide-react";
 import { useAuth } from "@/features/auth/contexts/AuthContext";
 import { signOut } from "firebase/auth";
 import { auth, db } from "@/lib/firebase/config";
@@ -36,6 +36,7 @@ export function SideNav() {
     { label: "Patients / OPD", icon: Users, href: "/patients" },
     { label: "Appointment", icon: CalendarDays, href: "/appointments" },
     { label: "Grooming", icon: Scissors, href: "/grooming" },
+    { label: "คลังยาและสินค้า (Loyverse)", icon: Package, href: "/inventory" },
     { label: "Cat Hotel", icon: Home, href: "/hotel" },
     { label: "Admit (แมว)", icon: ClipboardList, href: "/admit" },
     { label: "Reports", icon: PieChart, href: "/reports" },
