@@ -148,20 +148,22 @@ const fetchDashboardStats = async () => {
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
   thirtyDaysAgo.setHours(0, 0, 0, 0);
 
-  const [opdDocs, vacDocs, paraDocs] = await Promise.all([
+  const [opdDocs, vacDocs, paraDocs, groomDocs] = await Promise.all([
     getDocs(query(collection(db, "opd_records"), where("createdAt", ">=", thirtyDaysAgo.toISOString()))),
     getDocs(query(collection(db, "vaccinations"), where("createdAt", ">=", thirtyDaysAgo.toISOString()))),
-    getDocs(query(collection(db, "parasite_preventions"), where("createdAt", ">=", thirtyDaysAgo.toISOString())))
+    getDocs(query(collection(db, "parasite_preventions"), where("createdAt", ">=", thirtyDaysAgo.toISOString()))),
+    getDocs(query(collection(db, "grooming_queues"), where("createdAt", ">=", thirtyDaysAgo.toISOString())))
   ]);
 
   // Helper to extract DD/MM from logical date or fallback to createdAt
-  const extractDayMonth = (data: any) => {
-    if (data.date) {
-      if (data.date.includes("-")) {
-        const parts = data.date.split("-"); // YYYY-MM-DD
+  const extractDayMonth = (data: any, dateField: string = "date") => {
+    const dateVal = data[dateField];
+    if (dateVal) {
+      if (dateVal.includes("-")) {
+        const parts = dateVal.split("-"); // YYYY-MM-DD
         if (parts.length >= 3) return `${parts[2].substring(0, 2)}/${parts[1]}`;
-      } else if (data.date.includes("/")) {
-        const parts = data.date.split("/"); // DD/MM/YYYY
+      } else if (dateVal.includes("/")) {
+        const parts = dateVal.split("/"); // DD/MM/YYYY
         if (parts.length >= 2) return `${parts[0].padStart(2, '0')}/${parts[1].padStart(2, '0')}`;
       }
     }
@@ -172,14 +174,14 @@ const fetchDashboardStats = async () => {
   };
 
   // Group by day
-  const casesByDay: Record<string, { opd: number, vaccine: number, parasite: number }> = {};
+  const casesByDay: Record<string, { opd: number, vaccine: number, parasite: number, grooming: number }> = {};
   
   // Initialize last 7 days
   for (let i = 0; i < 7; i++) {
     const d = new Date(sevenDaysAgo);
     d.setDate(d.getDate() + i);
     const dateStr = format(d, "dd/MM");
-    casesByDay[dateStr] = { opd: 0, vaccine: 0, parasite: 0 };
+    casesByDay[dateStr] = { opd: 0, vaccine: 0, parasite: 0, grooming: 0 };
   }
 
   opdDocs.forEach(doc => {
@@ -200,12 +202,19 @@ const fetchDashboardStats = async () => {
     if (dateStr && casesByDay[dateStr]) casesByDay[dateStr].parasite++;
   });
 
+  groomDocs.forEach(doc => {
+    const data = doc.data();
+    const dateStr = extractDayMonth(data, "bookingDate");
+    if (dateStr && casesByDay[dateStr]) casesByDay[dateStr].grooming++;
+  });
+
   for (const [date, counts] of Object.entries(casesByDay)) {
     chartData.push({
       name: date,
       OPD: counts.opd,
       Vaccine: counts.vaccine,
-      Parasite: counts.parasite
+      Parasite: counts.parasite,
+      Grooming: counts.grooming
     });
   }
   // ------------------------------------
@@ -450,17 +459,21 @@ export default function DashboardPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={stats?.chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
-                    <linearGradient id="colorOPD" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                    <linearGradient id="colorOpd" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
                       <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
                     </linearGradient>
                     <linearGradient id="colorVaccine" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
                     </linearGradient>
                     <linearGradient id="colorParasite" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#14b8a6" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#14b8a6" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="colorGrooming" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#a855f7" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#a855f7" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6b7280' }} dy={10} />
@@ -470,9 +483,10 @@ export default function DashboardPage() {
                     contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                     labelStyle={{ fontWeight: 'bold', color: '#111827', marginBottom: '4px' }}
                   />
-                  <Area type="monotone" dataKey="OPD" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorOPD)" />
+                  <Area type="monotone" dataKey="OPD" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorOpd)" />
                   <Area type="monotone" dataKey="Vaccine" name="วัคซีน" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorVaccine)" />
-                  <Area type="monotone" dataKey="Parasite" name="กำจัดปรสิต" stroke="#f59e0b" strokeWidth={2} fillOpacity={1} fill="url(#colorParasite)" />
+                  <Area type="monotone" dataKey="Parasite" stroke="#14b8a6" strokeWidth={2} fillOpacity={1} fill="url(#colorParasite)" name="ปรสิต" />
+                  <Area type="monotone" dataKey="Grooming" stroke="#a855f7" strokeWidth={2} fillOpacity={1} fill="url(#colorGrooming)" name="อาบน้ำ/ตัดขน" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
