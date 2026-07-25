@@ -57,11 +57,12 @@ const fetchOwnerProfile = async (id: string) => {
     
     let history: any[] = [];
 
-    const [opdSnap, aptSnap, groomSnap, hotelSnap] = await Promise.all([
+    const [opdSnap, aptSnap, groomSnap, hotelSnap, receiptSnap] = await Promise.all([
       getDocs(query(collection(db, "opd_records"), where("petId", "==", petId))),
       getDocs(query(collection(db, "appointments"), where("petId", "==", petId))),
       getDocs(query(collection(db, "grooming_queues"), where("petId", "==", petId))),
-      getDocs(query(collection(db, "hotel_bookings"), where("petId", "==", petId)))
+      getDocs(query(collection(db, "hotel_bookings"), where("petId", "==", petId))),
+      getDocs(query(collection(db, "linked_receipts"), where("petId", "==", petId)))
     ]);
 
     opdSnap.docs.forEach(d => {
@@ -105,6 +106,18 @@ const fetchOwnerProfile = async (id: string) => {
         date: hotel.checkIn,
         title: `เข้าพักห้อง ${hotel.roomNumber || ""}`,
         details: hotel
+      });
+    });
+
+    receiptSnap.docs.forEach(d => {
+      const receipt = d.data();
+      const dateStr = receipt.linkedAt ? new Date(receipt.linkedAt).toISOString().split('T')[0] : "";
+      history.push({
+        id: d.id,
+        category: "ชำระเงิน",
+        date: dateStr,
+        title: `บิล #${receipt.receipt_number}`,
+        details: receipt
       });
     });
 
@@ -308,6 +321,7 @@ export default function OwnerProfilePage({ params }: { params: Promise<{ id: str
                               <div className={`absolute left-0 top-1.5 w-[24px] h-[24px] rounded-full flex items-center justify-center border-4 border-white ${
                                 record.category === "OPD" ? "bg-blue-500" :
                                 record.category === "นัดหมาย" ? "bg-mint-500" :
+                                record.category === "ชำระเงิน" ? "bg-green-500" :
                                 record.category === "อาบน้ำตัดขน" ? "bg-purple-500" :
                                 "bg-orange-500"
                               }`}>
@@ -316,6 +330,7 @@ export default function OwnerProfilePage({ params }: { params: Promise<{ id: str
                               <div className={`p-3 rounded-xl border border-gray-100 text-sm shadow-sm ${
                                 record.category === "OPD" ? "bg-blue-50/50" :
                                 record.category === "นัดหมาย" ? "bg-mint-50/50" :
+                                record.category === "ชำระเงิน" ? "bg-green-50/50" :
                                 record.category === "อาบน้ำตัดขน" ? "bg-purple-50/50" :
                                 "bg-orange-50/50"
                               }`}>
@@ -327,6 +342,7 @@ export default function OwnerProfilePage({ params }: { params: Promise<{ id: str
                                   <span className={`px-2 py-0.5 rounded-md text-xs font-bold ${
                                     record.category === "OPD" ? "bg-blue-100 text-blue-700" :
                                     record.category === "นัดหมาย" ? "bg-mint-100 text-mint-700" :
+                                    record.category === "ชำระเงิน" ? "bg-green-100 text-green-700" :
                                     record.category === "อาบน้ำตัดขน" ? "bg-purple-100 text-purple-700" :
                                     "bg-orange-100 text-orange-700"
                                   }`}>
@@ -380,6 +396,12 @@ export default function OwnerProfilePage({ params }: { params: Promise<{ id: str
                                     <>
                                       <p><span className="font-bold text-gray-700">Check Out:</span> {record.details.checkOut}</p>
                                       {record.details.food && <p><span className="font-bold text-gray-700">อาหาร:</span> {record.details.food}</p>}
+                                    </>
+                                  )}
+
+                                  {record.category === "ชำระเงิน" && (
+                                    <>
+                                      <p><span className="font-bold text-gray-700">ยอดชำระ:</span> ฿ {new Intl.NumberFormat('th-TH').format(record.details.total_money || 0)}</p>
                                     </>
                                   )}
                                 </div>
