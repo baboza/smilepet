@@ -1,15 +1,30 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, DollarSign, Receipt, ShoppingBag } from "lucide-react";
+import { ArrowLeft, DollarSign, Receipt, ShoppingBag, Link as LinkIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { db } from "@/lib/firebase/config";
+import { collection, getDocs, doc, setDoc } from "firebase/firestore";
 
 const fetchReceipts = async () => {
   const res = await fetch("/api/loyverse/receipts");
   if (!res.ok) throw new Error("Failed to fetch receipts");
   const data = await res.json();
   return data; // { totalRevenue, receipts }
+};
+
+const fetchPets = async () => {
+  const snap = await getDocs(collection(db, "pets"));
+  return snap.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
+};
+
+const fetchLinkedReceipts = async () => {
+  const snap = await getDocs(collection(db, "linked_receipts"));
+  return snap.docs.reduce((acc, doc) => {
+    acc[doc.id] = doc.data();
+    return acc;
+  }, {} as Record<string, any>);
 };
 
 export default function SalesPage() {
@@ -20,8 +35,39 @@ export default function SalesPage() {
     queryFn: fetchReceipts,
   });
 
+  const { data: pets } = useQuery({
+    queryKey: ["pets"],
+    queryFn: fetchPets,
+  });
+
+  const { data: linkedReceipts, refetch: refetchLinked } = useQuery({
+    queryKey: ["linkedReceipts"],
+    queryFn: fetchLinkedReceipts,
+  });
+
   const receipts = data?.receipts || [];
   const totalRevenue = data?.totalRevenue || 0;
+
+  const handleLinkPet = async (receipt: any, petId: string) => {
+    if (!petId) return;
+    try {
+      const pet = pets?.find(p => p.id === petId);
+      if (!pet) return;
+      
+      await setDoc(doc(db, "linked_receipts", receipt.receipt_number), {
+        receipt_number: receipt.receipt_number,
+        petId: pet.id,
+        petName: pet.name,
+        ownerName: pet.ownerName || "",
+        linkedAt: new Date().toISOString(),
+        total_money: receipt.total_money,
+      });
+      refetchLinked();
+    } catch (e) {
+      console.error("Error linking pet:", e);
+      alert("เกิดข้อผิดพลาดในการบันทึก");
+    }
+  };
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 pb-20">
@@ -70,6 +116,7 @@ export default function SalesPage() {
               {receipts.map((receipt: any) => {
                 const date = new Date(receipt.created_at);
                 const timeString = date.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+                const linkedData = linkedReceipts?.[receipt.receipt_number];
                 
                 return (
                   <div key={receipt.receipt_number} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
@@ -82,6 +129,41 @@ export default function SalesPage() {
                         <p className="text-base font-black text-mint-600">
                           ฿ {new Intl.NumberFormat('th-TH').format(receipt.total_money)}
                         </p>
+                      </div>
+                    </div>
+                    
+                    {/* Pet Link Section */}
+                    <div className="mb-3 py-2 border-t border-b border-gray-50">
+                      <div className="flex items-center gap-2">
+                        <LinkIcon size={14} className="text-blue-500 shrink-0" />
+                        <div className="flex-1">
+                          {linkedData ? (
+                            <div className="flex justify-between items-center bg-blue-50 px-3 py-1.5 rounded-lg">
+                              <span className="text-sm font-bold text-blue-700">ผูกกับ: {linkedData.petName}</span>
+                              <button 
+                                onClick={() => {
+                                  // Optional: Add logic to unlink if needed
+                                }}
+                                className="text-xs text-blue-500 underline"
+                              >
+                                {linkedData.ownerName && `(เจ้าของ: ${linkedData.ownerName})`}
+                              </button>
+                            </div>
+                          ) : (
+                            <select 
+                              className="w-full text-sm border-gray-200 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                              onChange={(e) => handleLinkPet(receipt, e.target.value)}
+                              defaultValue=""
+                            >
+                              <option value="" disabled>ผูกกับสัตว์ป่วย (เลือกลูกค้า)</option>
+                              {pets?.map((pet) => (
+                                <option key={pet.id} value={pet.id}>
+                                  {pet.name} {pet.ownerName ? `(${pet.ownerName})` : ""}
+                                </option>
+                              ))}
+                            </select>
+                          )}
+                        </div>
                       </div>
                     </div>
                     
