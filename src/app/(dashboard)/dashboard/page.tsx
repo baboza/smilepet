@@ -77,7 +77,7 @@ const fetchDashboardStats = async () => {
   );
 
   const groomingSnap = await getCountFromServer(
-     query(collection(db, "grooming_queues"))
+     query(collection(db, "grooming_queues"), where("bookingDate", "==", todayStr))
   );
   const admitSnap = await getCountFromServer(
      query(collection(db, "admit_records"), where("status", "==", "กำลังรักษา"))
