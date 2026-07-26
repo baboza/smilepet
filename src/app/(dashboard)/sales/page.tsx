@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
 import { db } from "@/lib/firebase/config";
-import { collection, getDocs, doc, setDoc } from "firebase/firestore";
+import { collection, getDocs, doc, setDoc, deleteDoc } from "firebase/firestore";
 
 const fetchReceipts = async () => {
   const res = await fetch("/api/loyverse/receipts");
@@ -140,7 +140,17 @@ export default function SalesPage() {
       alert("เกิดข้อผิดพลาดในการบันทึก");
     }
   };
-
+  const handleUnlinkPet = async (receiptNumber: string) => {
+    if (window.confirm("ต้องการแก้ไขการผูกบิลนี้ใช่หรือไม่?")) {
+      try {
+        await deleteDoc(doc(db, "linked_receipts", receiptNumber));
+        refetchLinked();
+      } catch (e) {
+        console.error("Error unlinking pet:", e);
+        alert("เกิดข้อผิดพลาดในการแก้ไข");
+      }
+    }
+  };
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 pb-20">
       {/* Top App Bar */}
@@ -210,15 +220,16 @@ export default function SalesPage() {
                         <LinkIcon size={14} className="text-blue-500 shrink-0" />
                         <div className="flex-1">
                           {linkedData ? (
-                            <div className="flex justify-between items-center bg-blue-50 px-3 py-1.5 rounded-lg">
-                              <span className="text-sm font-bold text-blue-700">ผูกกับ: {linkedData.petName}</span>
+                            <div className="flex justify-between items-center bg-blue-50 px-3 py-2 rounded-lg border border-blue-100">
+                              <div className="flex flex-col">
+                                <span className="text-sm font-bold text-blue-800">น้อง: {linkedData.petName}</span>
+                                <span className="text-xs text-blue-600">เจ้าของ: {linkedData.ownerName || "ไม่ระบุ"}</span>
+                              </div>
                               <button 
-                                onClick={() => {
-                                  // Optional: Add logic to unlink if needed
-                                }}
-                                className="text-xs text-blue-500 underline"
+                                onClick={() => handleUnlinkPet(receipt.receipt_number)}
+                                className="text-xs font-bold bg-white text-blue-600 px-3 py-1.5 rounded-full border border-blue-200 hover:bg-blue-100 transition-colors shadow-sm"
                               >
-                                {linkedData.ownerName && `(เจ้าของ: ${linkedData.ownerName})`}
+                                แก้ไข
                               </button>
                             </div>
                           ) : (
