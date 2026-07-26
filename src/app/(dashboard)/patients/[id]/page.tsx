@@ -1,11 +1,11 @@
 "use client";
 
 import React, { use, useState } from "react";
-import { ArrowLeft, Edit, Phone, MapPin, CalendarPlus, Scissors, Home, Stethoscope, FileText, ChevronDown, ChevronUp, Syringe, BugOff, Microscope, Printer, Image as ImageIcon } from "lucide-react";
+import { ArrowLeft, Edit, Phone, MapPin, CalendarPlus, Scissors, Home, Stethoscope, FileText, ChevronDown, ChevronUp, Syringe, BugOff, Microscope, Printer, Image as ImageIcon, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { db } from "@/lib/firebase/config";
-import { doc, getDoc, collection, query, where, getDocs, orderBy } from "firebase/firestore";
+import { doc, getDoc, collection, query, where, getDocs, orderBy, deleteDoc } from "firebase/firestore";
 
 const calculateAge = (birthDateStr: string) => {
   if (!birthDateStr || birthDateStr === "-") return "-";
@@ -234,6 +234,18 @@ export default function OwnerProfilePage({ params }: { params: Promise<{ id: str
     setExpandedPetId(expandedPetId === petId ? null : petId);
   };
 
+  const handleDeletePet = async (petId: string, petName: string) => {
+    if (window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลของ "${petName}"?\n*หากลบแล้วจะไม่สามารถกู้คืนได้`)) {
+      try {
+        await deleteDoc(doc(db, "pets", petId));
+        window.location.reload();
+      } catch (error) {
+        console.error("Error deleting pet:", error);
+        alert("เกิดข้อผิดพลาดในการลบข้อมูล");
+      }
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 pb-20">
       
@@ -245,9 +257,9 @@ export default function OwnerProfilePage({ params }: { params: Promise<{ id: str
           </Link>
           <h1 className="text-lg font-bold text-gray-900">โปรไฟล์ลูกค้า</h1>
         </div>
-        <button className="p-2 -mr-2 rounded-full hover:bg-gray-100 text-gray-600 transition-colors">
+        <Link href={`/patients/${id}/edit`} className="p-2 -mr-2 rounded-full hover:bg-gray-100 text-gray-600 transition-colors">
           <Edit size={18} />
-        </button>
+        </Link>
       </div>
 
       {isLoading ? (
@@ -319,9 +331,14 @@ export default function OwnerProfilePage({ params }: { params: Promise<{ id: str
                       <div className="flex flex-col sm:flex-row justify-between items-center sm:items-start gap-2 mb-2">
                         <div className="flex items-center gap-3">
                           <h4 className="font-bold text-gray-900 text-2xl truncate">{pet.name}</h4>
-                          <Link href={`/patients/pet/${pet.id}/edit`} className="p-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-full transition-colors">
-                            <Edit size={14} />
-                          </Link>
+                          <div className="flex items-center gap-1">
+                            <Link href={`/patients/pet/${pet.id}/edit`} className="p-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-full transition-colors">
+                              <Edit size={14} />
+                            </Link>
+                            <button onClick={() => handleDeletePet(pet.id, pet.name)} className="p-1.5 bg-red-50 hover:bg-red-100 text-red-500 rounded-full transition-colors">
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
                         </div>
                         <span className="text-xs font-bold bg-gray-100 text-gray-600 px-3 py-1 rounded-lg uppercase tracking-wide">
                           {pet.species}
