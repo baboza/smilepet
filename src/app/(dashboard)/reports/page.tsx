@@ -5,7 +5,7 @@ import { Download, FileText, Package, Calendar, Activity, Scissors, Home, Credit
 import { useQuery } from "@tanstack/react-query";
 import { db } from "@/lib/firebase/config";
 import { collection, getDocs } from "firebase/firestore";
-import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, isAfter, isBefore, isEqual } from "date-fns";
+import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isAfter, isBefore, isEqual } from "date-fns";
 import { BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 const fetchLoyverseEmployees = async () => {
@@ -35,9 +35,6 @@ const fetchLoyverseEmployees = async () => {
     } else if (period === "เดือนนี้") {
       startDate = startOfMonth(now);
       endDate = endOfMonth(now);
-    } else if (period === "ปีนี้") {
-      startDate = startOfYear(now);
-      endDate = endOfYear(now);
     }
     
     min = startDate.toISOString().split('.')[0] + 'Z';
@@ -103,9 +100,6 @@ export default function ReportsPage() {
   } else if (reportPeriod === "เดือนนี้") {
     startDate = startOfMonth(now);
     endDate = endOfMonth(now);
-  } else if (reportPeriod === "ปีนี้") {
-    startDate = startOfYear(now);
-    endDate = endOfYear(now);
   }
 
   // Filter helper
@@ -251,7 +245,7 @@ export default function ReportsPage() {
 
         {/* Filter */}
         <div className="flex gap-2 overflow-x-auto pb-1 hide-scrollbar">
-          {["วันนี้", "สัปดาห์นี้", "เดือนนี้", "ปีนี้", "ทั้งหมด"].map((period) => (
+          {["วันนี้", "สัปดาห์นี้", "เดือนนี้", "ทั้งหมด"].map((period) => (
             <button 
               key={period}
               onClick={() => setReportPeriod(period)}
