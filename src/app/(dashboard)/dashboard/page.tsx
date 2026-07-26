@@ -4,7 +4,7 @@ import { useAuth } from "@/features/auth/contexts/AuthContext";
 import { auth, db } from "@/lib/firebase/config";
 import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
-import { LogOut, Users, Calendar, Home, Scissors, DollarSign, Activity, Bell, Dog, Cat, CheckCircle2, XCircle, HeartPulse, User, Search } from "lucide-react";
+import { LogOut, Users, Calendar, Home, Scissors, DollarSign, Activity, Bell, Dog, Cat, CheckCircle2, XCircle, HeartPulse, User, Search, Syringe, BugOff } from "lucide-react";
 import { StatCard } from "@/components/ui/StatCard";
 import { useQuery } from "@tanstack/react-query";
 import { collection, query, where, getDocs, orderBy, limit, getCountFromServer, doc, getDoc } from "firebase/firestore";
@@ -81,6 +81,14 @@ const fetchDashboardStats = async () => {
   );
   const admitSnap = await getCountFromServer(
      query(collection(db, "admit_records"), where("status", "==", "กำลังรักษา"))
+  );
+  
+  const vaccineSnap = await getCountFromServer(
+     query(collection(db, "vaccinations"), where("date", "==", todayStr))
+  );
+
+  const parasiteSnap = await getCountFromServer(
+     query(collection(db, "parasite_preventions"), where("date", "==", todayStr))
   );
 
   // Fetch all pets for statistics
@@ -224,8 +232,10 @@ const fetchDashboardStats = async () => {
     appointmentsToday: appointmentsTodaySnap.data().count,
     boarding: boardingSnap.data().count,
     grooming: groomingSnap.data().count,
-    revenue: loyverseRevenue === "0" ? "Loyverse" : `฿ ${loyverseRevenue}`,
     admitted: admitSnap.data().count,
+    vaccineToday: vaccineSnap.data().count,
+    parasiteToday: parasiteSnap.data().count,
+    revenue: loyverseRevenue === "0" ? "Loyverse" : `฿ ${loyverseRevenue}`,
     petStats: {
       ...petStats,
       avgAge
@@ -433,6 +443,20 @@ export default function DashboardPage() {
               icon={Activity} 
               colorScheme="red"
               onClick={() => router.push("/admit")}
+            />
+            <StatCard 
+              title="วัคซีน" 
+              value={stats?.vaccineToday || 0} 
+              icon={Syringe} 
+              colorScheme="pink"
+              onClick={() => router.push("/vaccine/new")}
+            />
+            <StatCard 
+              title="กำจัดปรสิต" 
+              value={stats?.parasiteToday || 0} 
+              icon={BugOff} 
+              colorScheme="blue"
+              onClick={() => router.push("/parasite/new")}
             />
             <StatCard 
               title="รายรับ" 
