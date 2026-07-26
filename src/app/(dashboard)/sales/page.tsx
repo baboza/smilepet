@@ -16,8 +16,24 @@ const fetchReceipts = async () => {
 };
 
 const fetchPets = async () => {
-  const snap = await getDocs(collection(db, "pets"));
-  return snap.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
+  const [petsSnap, ownersSnap] = await Promise.all([
+    getDocs(collection(db, "pets")),
+    getDocs(collection(db, "owners"))
+  ]);
+  
+  const owners = ownersSnap.docs.reduce((acc, doc) => {
+    acc[doc.id] = doc.data().name;
+    return acc;
+  }, {} as Record<string, string>);
+
+  return petsSnap.docs.map(doc => {
+    const data = doc.data() as any;
+    return { 
+      id: doc.id, 
+      ...data,
+      ownerName: owners[data.ownerId] || "ไม่ระบุ"
+    };
+  });
 };
 
 const fetchLinkedReceipts = async () => {
