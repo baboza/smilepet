@@ -5,7 +5,7 @@ import { Download, FileText, Package, Calendar, Activity, Scissors, Home, Credit
 import { useQuery } from "@tanstack/react-query";
 import { db } from "@/lib/firebase/config";
 import { collection, getDocs } from "firebase/firestore";
-import { startOfDay, startOfWeek, startOfMonth, isAfter } from "date-fns";
+import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, isAfter, isBefore, isEqual } from "date-fns";
 import { BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 const fetchLoyverseEmployees = async () => {
@@ -22,14 +22,26 @@ const fetchLoyverseEmployees = async () => {
   let max = "";
   
   if (period !== "ทั้งหมด") {
-    let cutoffDate = new Date(0);
     const now = new Date();
-    if (period === "วันนี้") cutoffDate = startOfDay(now);
-    if (period === "สัปดาห์นี้") cutoffDate = startOfWeek(now, { weekStartsOn: 1 });
-    if (period === "เดือนนี้") cutoffDate = startOfMonth(now);
+    let startDate = new Date(0);
+    let endDate = now;
+
+    if (period === "วันนี้") {
+      startDate = startOfDay(now);
+      endDate = endOfDay(now);
+    } else if (period === "สัปดาห์นี้") {
+      startDate = startOfWeek(now, { weekStartsOn: 1 });
+      endDate = endOfWeek(now, { weekStartsOn: 1 });
+    } else if (period === "เดือนนี้") {
+      startDate = startOfMonth(now);
+      endDate = endOfMonth(now);
+    } else if (period === "ปีนี้") {
+      startDate = startOfYear(now);
+      endDate = endOfYear(now);
+    }
     
-    min = cutoffDate.toISOString().split('.')[0] + 'Z';
-    max = now.toISOString().split('.')[0] + 'Z';
+    min = startDate.toISOString().split('.')[0] + 'Z';
+    max = endDate.toISOString().split('.')[0] + 'Z';
   }
   
   try {
@@ -77,19 +89,35 @@ export default function ReportsPage() {
     queryFn: () => fetchLoyverseRevenue(reportPeriod)
   });
 
-  // Calculate cut-off date based on period
-  let cutoffDate = new Date(0); // All time
+  // Calculate interval based on period
   const now = new Date();
-  if (reportPeriod === "วันนี้") cutoffDate = startOfDay(now);
-  if (reportPeriod === "สัปดาห์นี้") cutoffDate = startOfWeek(now, { weekStartsOn: 1 }); // Monday start
-  if (reportPeriod === "เดือนนี้") cutoffDate = startOfMonth(now);
+  let startDate = new Date(0); // All time
+  let endDate = new Date('2100-01-01');
+
+  if (reportPeriod === "วันนี้") {
+    startDate = startOfDay(now);
+    endDate = endOfDay(now);
+  } else if (reportPeriod === "สัปดาห์นี้") {
+    startDate = startOfWeek(now, { weekStartsOn: 1 }); // Monday start
+    endDate = endOfWeek(now, { weekStartsOn: 1 });
+  } else if (reportPeriod === "เดือนนี้") {
+    startDate = startOfMonth(now);
+    endDate = endOfMonth(now);
+  } else if (reportPeriod === "ปีนี้") {
+    startDate = startOfYear(now);
+    endDate = endOfYear(now);
+  }
 
   // Filter helper
   const isWithinPeriod = (dateStr: string) => {
     if (!dateStr) return false;
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return false;
-    return isAfter(d, cutoffDate) || d.getTime() === cutoffDate.getTime();
+    
+    if (reportPeriod === "ทั้งหมด") return true;
+    
+    return (isAfter(d, startDate) || isEqual(d, startDate)) && 
+           (isBefore(d, endDate) || isEqual(d, endDate));
   };
 
   // 1. Calculate KPIs
@@ -121,8 +149,19 @@ export default function ReportsPage() {
   
   const paymentMethods: Record<string, number> = {};
   const staffSales: Record<string, number> = {};
-  const hourlyTrends: Record<string, number> = {};
+  const trendTrends: Record<string, number> = {};
   const itemCounts: Record<string, { qty: number, revenue: number }> = {};
+
+  if (reportPeriod === "วันนี้") {
+    for (let i = 8; i <= 21; i++) trendTrends[`${i.toString().padStart(2, '0')}:00`] = 0;
+  } else if (reportPeriod === "สัปดาห์นี้") {
+    ["จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส.", "อา."].forEach(d => trendTrends[d] = 0);
+  } else if (reportPeriod === "เดือนนี้") {
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    for (let i = 1; i <= daysInMonth; i++) trendTrends[i.toString()] = 0;
+  } else {
+    ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."].forEach(m => trendTrends[m] = 0);
+  }
 
   filteredReceipts.forEach((r: any) => {
     totalDiscounts += Math.abs(r.total_discount || 0); // Convert to absolute just in case
@@ -141,8 +180,24 @@ export default function ReportsPage() {
 
     if (r.created_at) {
       const date = new Date(r.created_at);
-      const hour = date.getHours().toString().padStart(2, '0') + ":00";
-      hourlyTrends[hour] = (hourlyTrends[hour] || 0) + 1;
+      let key = "";
+      if (reportPeriod === "วันนี้") {
+        key = date.getHours().toString().padStart(2, '0') + ":00";
+      } else if (reportPeriod === "สัปดาห์นี้") {
+        const dNames = ["อา.", "จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส."];
+        key = dNames[date.getDay()];
+      } else if (reportPeriod === "เดือนนี้") {
+        key = date.getDate().toString();
+      } else {
+        const mNames = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+        key = mNames[date.getMonth()];
+      }
+      
+      if (trendTrends[key] !== undefined) {
+        trendTrends[key] += (r.total_money || 0);
+      } else {
+        trendTrends[key] = (r.total_money || 0);
+      }
     }
 
     if (r.line_items) {
@@ -169,9 +224,7 @@ export default function ReportsPage() {
     })
     .sort((a, b) => b.sales - a.sales);
 
-  const hourlyData = Object.entries(hourlyTrends)
-    .map(([time, cases]) => ({ time, cases }))
-    .sort((a, b) => a.time.localeCompare(b.time));
+  const trendData = Object.entries(trendTrends).map(([time, value]) => ({ time, value }));
 
   const topItemsData = Object.entries(itemCounts)
     .sort((a, b) => b[1].revenue - a[1].revenue)
@@ -198,7 +251,7 @@ export default function ReportsPage() {
 
         {/* Filter */}
         <div className="flex gap-2 overflow-x-auto pb-1 hide-scrollbar">
-          {["วันนี้", "สัปดาห์นี้", "เดือนนี้", "ทั้งหมด"].map((period) => (
+          {["วันนี้", "สัปดาห์นี้", "เดือนนี้", "ปีนี้", "ทั้งหมด"].map((period) => (
             <button 
               key={period}
               onClick={() => setReportPeriod(period)}
@@ -348,20 +401,20 @@ export default function ReportsPage() {
           </div>
         )}
 
-        {/* Hourly Trends */}
-        {hourlyData.length > 0 && (
+        {/* Dynamic Trends */}
+        {trendData.length > 0 && (
           <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
             <h2 className="font-bold text-gray-900 flex items-center gap-2 mb-4">
-              <Activity size={18} className="text-purple-500" /> ช่วงเวลาที่มีลูกค้าเยอะที่สุด (บิล/ชม.)
+              <Activity size={18} className="text-purple-500" /> เทรนด์ยอดขาย ({reportPeriod})
             </h2>
             <div className="h-60 w-full -ml-4">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={hourlyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <LineChart data={trendData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
                   <XAxis dataKey="time" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6b7280' }} dy={10} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6b7280' }} />
-                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                  <Line type="monotone" dataKey="cases" stroke="#a855f7" strokeWidth={3} dot={{ r: 4, fill: "#a855f7", strokeWidth: 2, stroke: "#fff" }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6b7280' }} tickFormatter={(val) => `฿${val > 1000 ? (val/1000).toFixed(0)+'k' : val}`} />
+                  <Tooltip formatter={(value: any) => `฿ ${Number(value).toLocaleString()}`} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                  <Line type="monotone" dataKey="value" stroke="#a855f7" strokeWidth={3} dot={{ r: 4, fill: "#a855f7", strokeWidth: 2, stroke: "#fff" }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
