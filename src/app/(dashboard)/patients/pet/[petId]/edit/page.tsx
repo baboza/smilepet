@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 import { useState, useRef, useEffect, use } from "react";
 import { uploadImage } from "@/lib/firebase/storage";
 import { db } from "@/lib/firebase/config";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, updateDoc } from "firebase/firestore";
 import { useQuery } from "@tanstack/react-query";
 
 const petFormSchema = z.object({
@@ -22,6 +22,7 @@ const petFormSchema = z.object({
   sterilization: z.string().optional(),
   weight: z.string().optional(),
   photoUrl: z.string().optional(),
+  ownerId: z.string().min(1, "กรุณาระบุเจ้าของ"),
 });
 
 type PetFormValues = z.infer<typeof petFormSchema>;
@@ -31,6 +32,11 @@ const fetchPet = async (id: string) => {
   const docSnap = await getDoc(docRef);
   if (!docSnap.exists()) return null;
   return { id: docSnap.id, ...(docSnap.data() as any) };
+};
+
+const fetchOwners = async () => {
+  const snap = await getDocs(collection(db, "owners"));
+  return snap.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
 };
 
 export default function EditPetPage({ params }: { params: Promise<{ petId: string }> }) {
@@ -48,6 +54,11 @@ export default function EditPetPage({ params }: { params: Promise<{ petId: strin
     queryFn: () => fetchPet(petId),
   });
 
+  const { data: owners, isLoading: isOwnersLoading } = useQuery({
+    queryKey: ["owners-list"],
+    queryFn: fetchOwners,
+  });
+
   const { register, handleSubmit, reset, formState: { errors } } = useForm<any>({
     resolver: zodResolver(petFormSchema)
   });
@@ -63,6 +74,7 @@ export default function EditPetPage({ params }: { params: Promise<{ petId: strin
         sex: pet.sex || "",
         sterilization: pet.sterilization || "",
         weight: pet.weight || "",
+        ownerId: pet.ownerId || "",
       });
       if (pet.photoUrl) {
         setPetImagePreview(pet.photoUrl);
@@ -98,12 +110,13 @@ export default function EditPetPage({ params }: { params: Promise<{ petId: strin
         sex: data.sex || "",
         sterilization: data.sterilization || "",
         weight: data.weight || "",
+        ownerId: data.ownerId || pet.ownerId,
         photoUrl: petPhotoUrl,
         updatedAt: new Date().toISOString()
       });
 
-      // Navigate back to owner profile
-      router.push(`/patients/${pet.ownerId}`);
+      // Navigate back to owner profile (new owner if changed)
+      router.push(`/patients/${data.ownerId || pet.ownerId}`);
     } catch (error) {
       console.error(error);
       alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
@@ -164,6 +177,23 @@ export default function EditPetPage({ params }: { params: Promise<{ petId: strin
                 className={`w-full p-3 border rounded-xl bg-gray-50 text-gray-900 focus:bg-white focus:outline-none focus:ring-2 transition-colors ${errors.name ? "border-red-300 focus:ring-red-500" : "border-gray-300 focus:ring-orange-500"}`}
               />
               {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message as string}</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-gray-800 mb-1">เจ้าของ <span className="text-red-500">*</span></label>
+              <select 
+                {...register("ownerId")}
+                className={`w-full p-3 border rounded-xl bg-gray-50 text-gray-900 focus:bg-white focus:outline-none focus:ring-2 transition-colors ${errors.ownerId ? "border-red-300 focus:ring-red-500" : "border-gray-300 focus:ring-orange-500"}`}
+                disabled={isOwnersLoading}
+              >
+                <option value="">เลือกเจ้าของ...</option>
+                {owners?.map((owner: any) => (
+                  <option key={owner.id} value={owner.id}>
+                    {owner.name} {owner.phone ? `(${owner.phone})` : ""}
+                  </option>
+                ))}
+              </select>
+              {errors.ownerId && <p className="text-red-500 text-xs mt-1">{errors.ownerId.message as string}</p>}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
